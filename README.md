@@ -6,7 +6,7 @@
 <br />
 
 <p align="center">
-  <img src="assets/oxipulse-banner.svg" alt="OxiPulse" width="560" />
+  <img src="assets/oxipulse-banner.png" alt="OxiPulse" width="560" />
 </p>
 
 <p align="center">
