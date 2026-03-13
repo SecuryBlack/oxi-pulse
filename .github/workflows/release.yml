@@ -1,0 +1,121 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build — ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            archive_ext: tar.gz
+            cross: false
+
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            archive_ext: tar.gz
+            cross: true
+
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            archive_ext: zip
+            cross: false
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install aarch64 cross-compilation toolchain
+        if: matrix.cross == true
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+          key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.target }}-cargo-
+
+      - name: Build release binary
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+        run: cargo build --release --target ${{ matrix.target }}
+
+      # ── Linux packaging ──────────────────────────────────────────────────
+      - name: Package (Linux tar.gz)
+        if: matrix.archive_ext == 'tar.gz'
+        run: |
+          ASSET="oxipulse-${{ matrix.target }}"
+          cp "target/${{ matrix.target }}/release/oxipulse" oxipulse
+          tar czf "${ASSET}.tar.gz" oxipulse
+          sha256sum "${ASSET}.tar.gz" > "${ASSET}.tar.gz.sha256"
+          echo "ASSET_PATH=${ASSET}.tar.gz" >> "$GITHUB_ENV"
+          echo "CHECKSUM_PATH=${ASSET}.tar.gz.sha256" >> "$GITHUB_ENV"
+
+      # ── Windows packaging ────────────────────────────────────────────────
+      - name: Package (Windows zip)
+        if: matrix.archive_ext == 'zip'
+        shell: pwsh
+        run: |
+          $asset = "oxipulse-${{ matrix.target }}"
+          Copy-Item "target\${{ matrix.target }}\release\oxipulse.exe" "oxipulse.exe"
+          Compress-Archive -Path "oxipulse.exe" -DestinationPath "${asset}.zip"
+          $hash = (Get-FileHash "${asset}.zip" -Algorithm SHA256).Hash.ToLower()
+          "${hash}  ${asset}.zip" | Set-Content "${asset}.zip.sha256"
+          "ASSET_PATH=${asset}.zip"          | Add-Content $env:GITHUB_ENV
+          "CHECKSUM_PATH=${asset}.zip.sha256" | Add-Content $env:GITHUB_ENV
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}
+          path: |
+            ${{ env.ASSET_PATH }}
+            ${{ env.CHECKSUM_PATH }}
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: List artifacts
+        run: ls -lh artifacts/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/**
+          generate_release_notes: true
+          fail_on_unmatched_files: true

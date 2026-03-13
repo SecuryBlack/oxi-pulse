@@ -1,0 +1,20 @@
+[package]
+name = "oxipulse"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+description = "Ultralight open source server monitoring agent"
+repository = "https://github.com/securyblack/oxi-pulse"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+sysinfo = "0.33"
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+opentelemetry = { version = "0.27", features = ["metrics"] }
+opentelemetry_sdk = { version = "0.27", features = ["metrics", "rt-tokio"] }
+opentelemetry-otlp = { version = "0.27", features = ["metrics", "grpc-tonic"] }
+tonic = "0.12"
+self_update = { version = "0.42", default-features = false, features = ["archive-tar", "archive-zip", "compression-flate2", "compression-zip-deflate"] }
