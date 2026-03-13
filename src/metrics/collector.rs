@@ -3,6 +3,7 @@ use sysinfo::{Disks, Networks, System};
 
 #[derive(Debug)]
 pub struct Metrics {
+    #[allow(dead_code)]
     pub timestamp_unix_ms: u64,
     pub cpu_usage_percent: f32,
     pub ram_total_bytes: u64,
