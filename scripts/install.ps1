@@ -1,9 +1,9 @@
 # OxiPulse — Windows Install Script
-# Usage (generic):     irm https://install.oxipulse.io/windows | iex
-# Usage (SecuryBlack): irm https://install.oxipulse.io/windows | iex -Endpoint ingest.securyblack.com -Token <TOKEN>
+# Usage (generic):     irm https://install.oxipulse.dev | iex
+# Usage (SecuryBlack): irm https://install.oxipulse.dev | iex -Endpoint ingest.securyblack.com -Token <TOKEN>
 #
 # Or with explicit params:
-#   $script = irm https://install.oxipulse.io/windows
+#   $script = irm https://install.oxipulse.dev
 #   & ([scriptblock]::Create($script)) -Endpoint "https://ingest.example.com:4317" -Token "tok_abc123"
 [CmdletBinding()]
 param(
@@ -117,13 +117,19 @@ interval_secs = 10
 buffer_max_size = 8640
 "@ | Set-Content -Path $ConfigFile -Encoding UTF8
 
-    # Restrict config file permissions to Administrators and SYSTEM only
+    # Restrict config file permissions to Administrators and SYSTEM only.
+    # Use well-known SIDs (locale-independent) instead of string account names
+    # to avoid "identity reference could not be translated" on non-English Windows.
     $acl = Get-Acl $ConfigFile
     $acl.SetAccessRuleProtection($true, $false)
+    $adminSid   = New-Object System.Security.Principal.SecurityIdentifier(
+        [System.Security.Principal.WellKnownSidType]::BuiltinAdministratorsSid, $null)
+    $systemSid  = New-Object System.Security.Principal.SecurityIdentifier(
+        [System.Security.Principal.WellKnownSidType]::LocalSystemSid, $null)
     $adminRule  = New-Object System.Security.AccessControl.FileSystemAccessRule(
-        "Administrators", "FullControl", "Allow")
+        $adminSid, "FullControl", "Allow")
     $systemRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
-        "SYSTEM", "FullControl", "Allow")
+        $systemSid, "FullControl", "Allow")
     $acl.AddAccessRule($adminRule)
     $acl.AddAccessRule($systemRule)
     Set-Acl -Path $ConfigFile -AclObject $acl
