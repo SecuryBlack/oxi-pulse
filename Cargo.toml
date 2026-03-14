@@ -18,3 +18,6 @@ opentelemetry_sdk = { version = "0.27", features = ["metrics", "rt-tokio"] }
 opentelemetry-otlp = { version = "0.27", features = ["metrics", "grpc-tonic"] }
 tonic = "0.12"
 self_update = { version = "0.42", default-features = false, features = ["archive-tar", "archive-zip", "compression-flate2", "compression-zip-deflate"] }
+
+[target.'cfg(windows)'.dependencies]
+windows-service = "0.7"

@@ -8,8 +8,8 @@ mod metrics;
 mod telemetry;
 mod updater;
 
-#[tokio::main]
-async fn main() {
+/// Core agent loop. Runs until the shutdown receiver fires.
+async fn run(mut shutdown: tokio::sync::oneshot::Receiver<()>) {
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
@@ -39,7 +39,6 @@ async fn main() {
 
     info!("OTLP exporter initialised");
 
-    // Start background daily update checker
     updater::start_daily_check();
 
     let mut collector = metrics::Collector::new();
@@ -49,53 +48,177 @@ async fn main() {
     let mut interval = time::interval(Duration::from_secs(cfg.interval_secs));
 
     loop {
-        interval.tick().await;
+        tokio::select! {
+            _ = interval.tick() => {
+                let m = collector.collect();
 
-        // Always collect — never drop a reading regardless of connectivity
-        let m = collector.collect();
+                let reachable = if !is_offline || backoff.should_check() {
+                    buffer::is_reachable(&cfg.endpoint).await
+                } else {
+                    false
+                };
 
-        // Check connectivity (with backoff when offline to avoid hammering the endpoint)
-        let reachable = if !is_offline || backoff.should_check() {
-            buffer::is_reachable(&cfg.endpoint).await
-        } else {
-            false
-        };
+                if reachable {
+                    buffer::log_status_change(is_offline, false, offline_buffer.len());
 
-        if reachable {
-            // Log transition offline → online
-            buffer::log_status_change(is_offline, false, offline_buffer.len());
+                    if is_offline {
+                        let buffered = offline_buffer.drain_all();
+                        let count = buffered.len();
+                        for bm in buffered {
+                            telemetry::record(&instruments, &bm);
+                        }
+                        info!(flushed = count, "buffer flushed");
+                        backoff.on_success();
+                        is_offline = false;
+                    }
 
-            // Flush buffered snapshots first, then record the current one
-            if is_offline {
-                let buffered = offline_buffer.drain_all();
-                let count = buffered.len();
-                for bm in buffered {
-                    telemetry::record(&instruments, &bm);
+                    telemetry::record(&instruments, &m);
+                    info!(
+                        cpu = format!("{:.1}%", m.cpu_usage_percent),
+                        ram_used_mb = m.ram_used_bytes / 1024 / 1024,
+                        ram_total_mb = m.ram_total_bytes / 1024 / 1024,
+                        disk_used_gb = m.disk_used_bytes / 1024 / 1024 / 1024,
+                        disk_total_gb = m.disk_total_bytes / 1024 / 1024 / 1024,
+                        net_in_kb = m.net_bytes_in / 1024,
+                        net_out_kb = m.net_bytes_out / 1024,
+                        "metrics collected and recorded"
+                    );
+                } else {
+                    buffer::log_status_change(is_offline, true, 0);
+                    is_offline = true;
+                    backoff.on_failure();
+
+                    offline_buffer.push(m);
+                    tracing::warn!(buffered = offline_buffer.len(), max = cfg.buffer_max_size, "offline — buffering metrics");
                 }
-                info!(flushed = count, "buffer flushed");
-                backoff.on_success();
-                is_offline = false;
             }
-
-            telemetry::record(&instruments, &m);
-            info!(
-                cpu = format!("{:.1}%", m.cpu_usage_percent),
-                ram_used_mb = m.ram_used_bytes / 1024 / 1024,
-                ram_total_mb = m.ram_total_bytes / 1024 / 1024,
-                disk_used_gb = m.disk_used_bytes / 1024 / 1024 / 1024,
-                disk_total_gb = m.disk_total_bytes / 1024 / 1024 / 1024,
-                net_in_kb = m.net_bytes_in / 1024,
-                net_out_kb = m.net_bytes_out / 1024,
-                "metrics collected and recorded"
-            );
-        } else {
-            // Log transition online → offline
-            buffer::log_status_change(is_offline, true, 0);
-            is_offline = true;
-            backoff.on_failure();
-
-            offline_buffer.push(m);
-            tracing::warn!(buffered = offline_buffer.len(), max = cfg.buffer_max_size, "offline — buffering metrics");
+            _ = &mut shutdown => {
+                info!("shutdown signal received, stopping");
+                break;
+            }
         }
     }
+}
+
+// ── Windows Service ───────────────────────────────────────────────────────────
+
+#[cfg(windows)]
+mod service {
+    use std::ffi::OsString;
+    use std::time::Duration;
+    use windows_service::{
+        define_windows_service,
+        service::{
+            ServiceControl, ServiceControlAccept, ServiceExitCode, ServiceState, ServiceStatus,
+            ServiceType,
+        },
+        service_control_handler::{self, ServiceControlHandlerResult},
+        service_dispatcher,
+    };
+
+    const SERVICE_NAME: &str = "OxiPulse";
+
+    define_windows_service!(ffi_service_main, service_main);
+
+    /// Called by the SCM. Blocks until the service stops.
+    pub fn start() -> Result<(), windows_service::Error> {
+        service_dispatcher::start(SERVICE_NAME, ffi_service_main)
+    }
+
+    fn service_main(_arguments: Vec<OsString>) {
+        let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
+        let shutdown_tx = std::sync::Mutex::new(Some(shutdown_tx));
+
+        let status_handle = service_control_handler::register(
+            SERVICE_NAME,
+            move |control_event| match control_event {
+                ServiceControl::Stop | ServiceControl::Shutdown => {
+                    if let Ok(mut guard) = shutdown_tx.lock() {
+                        if let Some(tx) = guard.take() {
+                            let _ = tx.send(());
+                        }
+                    }
+                    ServiceControlHandlerResult::NoError
+                }
+                ServiceControl::Interrogate => ServiceControlHandlerResult::NoError,
+                _ => ServiceControlHandlerResult::NotImplemented,
+            },
+        )
+        .expect("failed to register service control handler");
+
+        status_handle
+            .set_service_status(ServiceStatus {
+                service_type: ServiceType::OWN_PROCESS,
+                current_state: ServiceState::Running,
+                controls_accepted: ServiceControlAccept::STOP | ServiceControlAccept::SHUTDOWN,
+                exit_code: ServiceExitCode::Win32(0),
+                checkpoint: 0,
+                wait_hint: Duration::default(),
+                process_id: None,
+            })
+            .expect("failed to set service status Running");
+
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .expect("failed to build tokio runtime");
+
+        rt.block_on(super::run(shutdown_rx));
+
+        let _ = status_handle.set_service_status(ServiceStatus {
+            service_type: ServiceType::OWN_PROCESS,
+            current_state: ServiceState::Stopped,
+            controls_accepted: ServiceControlAccept::empty(),
+            exit_code: ServiceExitCode::Win32(0),
+            checkpoint: 0,
+            wait_hint: Duration::default(),
+            process_id: None,
+        });
+    }
+}
+
+#[cfg(windows)]
+fn run_console() {
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .expect("failed to build tokio runtime");
+
+    rt.block_on(async {
+        let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel();
+        tokio::spawn(async move {
+            tokio::signal::ctrl_c().await.ok();
+            let _ = shutdown_tx.send(());
+        });
+        run(shutdown_rx).await;
+    });
+}
+
+#[cfg(windows)]
+fn main() {
+    // ERROR_FAILED_SERVICE_CONTROLLER_CONNECT (1063): process was not started
+    // by the SCM, so run in console mode instead.
+    match service::start() {
+        Ok(_) => {}
+        Err(windows_service::Error::Winapi(e)) if e.raw_os_error() == Some(1063) => {
+            run_console();
+        }
+        Err(e) => {
+            eprintln!("[oxipulse] service error: {e}");
+            std::process::exit(1);
+        }
+    }
+}
+
+// ── Linux / macOS ─────────────────────────────────────────────────────────────
+
+#[cfg(not(windows))]
+#[tokio::main]
+async fn main() {
+    let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel();
+    tokio::spawn(async move {
+        tokio::signal::ctrl_c().await.ok();
+        let _ = shutdown_tx.send(());
+    });
+    run(shutdown_rx).await;
 }
