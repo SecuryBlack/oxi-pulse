@@ -118,8 +118,9 @@ fn parse_host_port(endpoint: &str) -> Option<String> {
     let addr = if without_scheme.contains(':') {
         without_scheme.to_string()
     } else {
-        // Default gRPC port
-        format!("{}:4317", without_scheme)
+        // Use 443 for https://, 4317 otherwise
+        let default_port = if endpoint.starts_with("https://") { 443 } else { 4317 };
+        format!("{}:{}", without_scheme, default_port)
     };
 
     Some(addr)
