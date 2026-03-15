@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # OxiPulse — Install script
-# Usage (generic):    curl -fsSL https://install.oxipulse.io | bash
-# Usage (SecuryBlack): curl -fsSL https://install.oxipulse.io | bash -s -- --endpoint ingest.securyblack.com --token <TOKEN>
+# Usage (generic):    curl -fsSL https://install.oxipulse.dev | bash
+# Usage (SecuryBlack): curl -fsSL https://install.oxipulse.dev | bash -s -- --endpoint ingest.securyblack.com --token <TOKEN>
 set -euo pipefail
 
 # ─── Colours ──────────────────────────────────────────────────────────────────

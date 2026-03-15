@@ -47,7 +47,7 @@ pub struct Backoff {
 impl Backoff {
     /// `max_wait_secs` / `interval_secs` sets the ceiling in ticks (min 1).
     pub fn new(interval_secs: u64) -> Self {
-        let max_ticks = (300 / interval_secs).max(1); // ceil at ~5 minutes
+        let max_ticks = (30 / interval_secs).max(1); // ceil at ~30 seconds
         Self {
             current_ticks: 1,
             max_ticks,
@@ -90,13 +90,20 @@ pub async fn is_reachable(endpoint: &str) -> bool {
     };
 
     match tokio::time::timeout(
-        std::time::Duration::from_secs(3),
+        std::time::Duration::from_secs(2),
         TcpStream::connect(&addr),
     )
     .await
     {
         Ok(Ok(_)) => true,
-        _ => false,
+        Ok(Err(e)) => {
+            warn!(%addr, error = %e, "reachability check failed");
+            false
+        }
+        Err(_) => {
+            warn!(%addr, "reachability check timed out");
+            false
+        }
     }
 }
 

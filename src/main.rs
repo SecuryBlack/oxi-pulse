@@ -8,14 +8,33 @@ mod metrics;
 mod telemetry;
 mod updater;
 
-/// Core agent loop. Runs until the shutdown receiver fires.
-async fn run(mut shutdown: tokio::sync::oneshot::Receiver<()>) {
+#[cfg(windows)]
+fn init_logging() {
+    let log_dir = r"C:\ProgramData\oxipulse";
+    let file_appender = tracing_appender::rolling::daily(log_dir, "oxipulse.log");
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
+        )
+        .with_writer(file_appender)
+        .with_ansi(false)
+        .init();
+}
+
+#[cfg(not(windows))]
+fn init_logging() {
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
                 .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
         )
         .init();
+}
+
+/// Core agent loop. Runs until the shutdown receiver fires.
+async fn run(mut shutdown: tokio::sync::oneshot::Receiver<()>) {
+    init_logging();
 
     info!("OxiPulse v{} starting", env!("CARGO_PKG_VERSION"));
 
@@ -52,7 +71,8 @@ async fn run(mut shutdown: tokio::sync::oneshot::Receiver<()>) {
             _ = interval.tick() => {
                 let m = collector.collect();
 
-                let reachable = if !is_offline || backoff.should_check() {
+                let did_check = !is_offline || backoff.should_check();
+                let reachable = if did_check {
                     buffer::is_reachable(&cfg.endpoint).await
                 } else {
                     false
@@ -86,7 +106,9 @@ async fn run(mut shutdown: tokio::sync::oneshot::Receiver<()>) {
                 } else {
                     buffer::log_status_change(is_offline, true, 0);
                     is_offline = true;
-                    backoff.on_failure();
+                    if did_check {
+                        backoff.on_failure();
+                    }
 
                     offline_buffer.push(m);
                     tracing::warn!(buffered = offline_buffer.len(), max = cfg.buffer_max_size, "offline — buffering metrics");
