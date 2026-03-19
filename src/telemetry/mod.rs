@@ -10,6 +10,7 @@ use opentelemetry_sdk::{
 };
 use std::time::Duration;
 use tonic::metadata::{MetadataMap, MetadataValue};
+use tonic::transport::ClientTlsConfig;
 
 use crate::metrics::Metrics;
 
@@ -40,6 +41,7 @@ pub fn init(
         .with_tonic()
         .with_endpoint(endpoint)
         .with_metadata(metadata)
+        .with_tls_config(ClientTlsConfig::new().with_native_roots())
         .build()?;
 
     // Periodic reader flushes on the same interval as our collection loop
