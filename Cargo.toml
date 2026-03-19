@@ -16,8 +16,8 @@ serde = { version = "1", features = ["derive"] }
 toml = "0.8"
 opentelemetry = { version = "0.27", features = ["metrics"] }
 opentelemetry_sdk = { version = "0.27", features = ["metrics", "rt-tokio"] }
-opentelemetry-otlp = { version = "0.27", features = ["metrics", "grpc-tonic"] }
-tonic = "0.12"
+opentelemetry-otlp = { version = "0.27", features = ["metrics", "grpc-tonic", "tls-roots"] }
+tonic = { version = "0.12", features = ["tls", "tls-roots"] }
 self_update = { version = "0.42", default-features = false, features = ["archive-tar", "archive-zip", "compression-flate2", "compression-zip-deflate"] }
 
 [target.'cfg(windows)'.dependencies]
