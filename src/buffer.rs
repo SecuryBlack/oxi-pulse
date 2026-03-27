@@ -79,6 +79,7 @@ impl Backoff {
 }
 
 /// Attempt a TCP connection to the host:port extracted from an OTLP endpoint URL.
+/// Resolves the hostname and prefers IPv4 to avoid stalls on hosts without IPv6.
 /// Returns true if reachable, false otherwise.
 pub async fn is_reachable(endpoint: &str) -> bool {
     let addr = match parse_host_port(endpoint) {
@@ -89,22 +90,30 @@ pub async fn is_reachable(endpoint: &str) -> bool {
         }
     };
 
-    match tokio::time::timeout(
-        std::time::Duration::from_secs(2),
-        TcpStream::connect(&addr),
-    )
-    .await
-    {
-        Ok(Ok(_)) => true,
-        Ok(Err(e)) => {
-            warn!(%addr, error = %e, "reachability check failed");
-            false
+    let mut addrs: Vec<std::net::SocketAddr> = match tokio::net::lookup_host(&addr).await {
+        Ok(iter) => iter.collect(),
+        Err(e) => {
+            warn!(%addr, error = %e, "DNS resolution failed");
+            return false;
         }
-        Err(_) => {
-            warn!(%addr, "reachability check timed out");
-            false
+    };
+
+    // Try IPv4 first to avoid long stalls when the remote has no IPv6 listener.
+    addrs.sort_by_key(|a| if a.is_ipv4() { 0u8 } else { 1u8 });
+
+    for sa in addrs {
+        match tokio::time::timeout(
+            std::time::Duration::from_secs(2),
+            TcpStream::connect(sa),
+        )
+        .await
+        {
+            Ok(Ok(_)) => return true,
+            Ok(Err(e)) => warn!(%sa, error = %e, "reachability check failed"),
+            Err(_) => warn!(%sa, "reachability check timed out"),
         }
     }
+    false
 }
 
 /// Extract "host:port" from URLs like "http://host:4317" or "https://host:4317".
