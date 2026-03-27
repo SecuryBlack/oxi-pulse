@@ -41,14 +41,17 @@ if (-not $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Adm
 }
 
 # ─── Architecture detection ───────────────────────────────────────────────────
-$arch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture
-$target = switch ($arch) {
-    "X64"   { "x86_64-pc-windows-msvc" }
-    "Arm64" { "aarch64-pc-windows-msvc" }
-    default { Fail "Unsupported architecture: $arch" }
+# Use PROCESSOR_ARCHITECTURE env var — works on all Windows versions including
+# Server 2025 with PowerShell 5.1 (.NET Framework), where RuntimeInformation
+# may not expose OSArchitecture.
+$procArch = $env:PROCESSOR_ARCHITECTURE
+$target = switch ($procArch) {
+    "AMD64" { "x86_64-pc-windows-msvc" }
+    "ARM64" { "aarch64-pc-windows-msvc" }
+    default { Fail "Unsupported architecture: $procArch" }
 }
 
-Write-Info "Detected architecture: $arch ($target)"
+Write-Info "Detected architecture: $procArch ($target)"
 
 # ─── Resolve latest release version ──────────────────────────────────────────
 Write-Info "Fetching latest release from GitHub..."
