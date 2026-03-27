@@ -108,10 +108,10 @@ chmod 700 "$CONFIG_DIR"
 # Ask interactively if not provided via arguments
 if [[ -z "$ENDPOINT" ]]; then
   echo ""
-  read -rp "$(echo -e "${BOLD}  OTLP endpoint (e.g. https://ingest.example.com:4317):${RESET} ")" ENDPOINT
+  read -rp "$(echo -e "${BOLD}  OTLP endpoint (e.g. https://ingest.example.com:4317):${RESET} ")" ENDPOINT </dev/tty
 fi
 if [[ -z "$TOKEN" ]]; then
-  read -rsp "$(echo -e "${BOLD}  Auth token:${RESET} ")" TOKEN
+  read -rsp "$(echo -e "${BOLD}  Auth token:${RESET} ")" TOKEN </dev/tty
   echo ""
 fi
 
