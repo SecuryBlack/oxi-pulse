@@ -6,7 +6,7 @@ use opentelemetry::{
 use opentelemetry_otlp::{MetricExporter, WithExportConfig, WithTonicConfig};
 use opentelemetry_sdk::{
     metrics::{PeriodicReader, SdkMeterProvider},
-    runtime,
+    runtime, Resource,
 };
 use std::time::Duration;
 use tonic::metadata::{MetadataMap, MetadataValue};
@@ -50,7 +50,15 @@ pub fn init(
         .build();
 
     // Build and register the global MeterProvider
-    let provider = SdkMeterProvider::builder().with_reader(reader).build();
+    let resource = Resource::new(vec![
+        KeyValue::new("service.name", "oxipulse"),
+        KeyValue::new("service.version", env!("CARGO_PKG_VERSION")),
+    ]);
+
+    let provider = SdkMeterProvider::builder()
+        .with_reader(reader)
+        .with_resource(resource)
+        .build();
     global::set_meter_provider(provider.clone());
 
     // Create instruments under the "oxipulse" meter
