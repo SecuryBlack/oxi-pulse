@@ -1,3 +1,7 @@
+use std::sync::{
+    atomic::{AtomicBool, AtomicU64, Ordering},
+    Arc,
+};
 use std::time::Duration;
 use tokio::time;
 use tracing::info;
@@ -5,6 +9,7 @@ use tracing::info;
 mod buffer;
 mod config;
 mod metrics;
+mod phone_home;
 mod telemetry;
 mod updater;
 
@@ -60,6 +65,46 @@ async fn run(mut shutdown: tokio::sync::oneshot::Receiver<()>) {
 
     updater::start_daily_check();
 
+    // ── Telemetry opt-in ─────────────────────────────────────────────────────
+    // Resolve effective telemetry flag:
+    //   Some(true)  → explicit opt-in (local config / env var)
+    //   Some(false) → explicit opt-out — never fetch remote config
+    //   None        → defer to server-side config fetched from the API
+    let telemetry_active = match cfg.telemetry_enabled {
+        Some(v) => v,
+        None => {
+            info!(api_url = %cfg.api_url, "fetching remote config");
+            match phone_home::fetch_remote_config(&cfg.api_url, &cfg.token).await {
+                Some(rc) => {
+                    info!(telemetry_enabled = rc.telemetry_enabled, "remote config received");
+                    rc.telemetry_enabled
+                }
+                None => {
+                    info!("remote config unavailable, telemetry disabled");
+                    false
+                }
+            }
+        }
+    };
+
+    let metrics_counter: Arc<AtomicU64> = Arc::new(AtomicU64::new(0));
+    let buffer_len_atomic: Arc<AtomicU64> = Arc::new(AtomicU64::new(0));
+    let is_offline_atomic: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
+
+    if telemetry_active {
+        info!("telemetry enabled — usage pings will be sent every 24 h");
+        phone_home::start_telemetry_task(
+            cfg.api_url.clone(),
+            cfg.token.clone(),
+            cfg.interval_secs,
+            cfg.buffer_max_size,
+            Arc::clone(&metrics_counter),
+            Arc::clone(&buffer_len_atomic),
+            Arc::clone(&is_offline_atomic),
+        );
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     let mut collector = metrics::Collector::new();
     let mut offline_buffer = buffer::OfflineBuffer::new(cfg.buffer_max_size);
     let mut backoff = buffer::Backoff::new(cfg.interval_secs);
@@ -86,13 +131,17 @@ async fn run(mut shutdown: tokio::sync::oneshot::Receiver<()>) {
                         let count = buffered.len();
                         for bm in buffered {
                             telemetry::record(&instruments, &bm);
+                            metrics_counter.fetch_add(1, Ordering::Relaxed);
                         }
                         info!(flushed = count, "buffer flushed");
                         backoff.on_success();
                         is_offline = false;
+                        is_offline_atomic.store(false, Ordering::Relaxed);
                     }
 
                     telemetry::record(&instruments, &m);
+                    metrics_counter.fetch_add(1, Ordering::Relaxed);
+                    buffer_len_atomic.store(offline_buffer.len() as u64, Ordering::Relaxed);
                     info!(
                         cpu = format!("{:.1}%", m.cpu_usage_percent),
                         ram_used_mb = m.ram_used_bytes / 1024 / 1024,
@@ -106,11 +155,13 @@ async fn run(mut shutdown: tokio::sync::oneshot::Receiver<()>) {
                 } else {
                     buffer::log_status_change(is_offline, true, 0);
                     is_offline = true;
+                    is_offline_atomic.store(true, Ordering::Relaxed);
                     if did_check {
                         backoff.on_failure();
                     }
 
                     offline_buffer.push(m);
+                    buffer_len_atomic.store(offline_buffer.len() as u64, Ordering::Relaxed);
                     tracing::warn!(buffered = offline_buffer.len(), max = cfg.buffer_max_size, "offline — buffering metrics");
                 }
             }

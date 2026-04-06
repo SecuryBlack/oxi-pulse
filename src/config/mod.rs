@@ -13,6 +13,15 @@ pub struct Config {
     /// Maximum number of metric snapshots to buffer when offline (default: 8640 = 24h at 10s)
     #[serde(default = "default_buffer_max")]
     pub buffer_max_size: usize,
+    /// Opt-in usage telemetry sent to SecuryBlack.
+    /// - absent / not set → defers to server-side config (fetched on startup)
+    /// - true             → always enabled, ignores server-side config
+    /// - false            → always disabled, ignores server-side config
+    pub telemetry_enabled: Option<bool>,
+    /// SecuryBlack API base URL used for remote config and telemetry pings.
+    /// Defaults to "https://api.securyblack.com".
+    #[serde(default = "default_api_url")]
+    pub api_url: String,
 }
 
 fn default_interval() -> u64 {
@@ -21,6 +30,10 @@ fn default_interval() -> u64 {
 
 fn default_buffer_max() -> usize {
     8640
+}
+
+fn default_api_url() -> String {
+    "https://api.securyblack.com".to_string()
 }
 
 #[derive(Debug)]
@@ -55,6 +68,8 @@ impl Config {
         let mut token: Option<String> = None;
         let mut interval_secs: u64 = default_interval();
         let mut buffer_max_size: usize = default_buffer_max();
+        let mut telemetry_enabled: Option<bool> = None;
+        let mut api_url: String = default_api_url();
 
         let config_path = Self::config_file_path();
         if Path::new(&config_path).exists() {
@@ -75,6 +90,12 @@ impl Config {
             if let Some(v) = file.get("buffer_max_size").and_then(|v| v.as_integer()) {
                 buffer_max_size = v as usize;
             }
+            if let Some(v) = file.get("telemetry_enabled").and_then(|v| v.as_bool()) {
+                telemetry_enabled = Some(v);
+            }
+            if let Some(v) = file.get("api_url").and_then(|v| v.as_str()) {
+                api_url = v.to_string();
+            }
         }
 
         // Env vars override config file
@@ -94,12 +115,24 @@ impl Config {
                 buffer_max_size = n;
             }
         }
+        if let Ok(v) = env::var("OXIPULSE_TELEMETRY") {
+            match v.to_lowercase().as_str() {
+                "true" | "1" | "yes" => telemetry_enabled = Some(true),
+                "false" | "0" | "no" => telemetry_enabled = Some(false),
+                _ => {}
+            }
+        }
+        if let Ok(v) = env::var("OXIPULSE_API_URL") {
+            api_url = v;
+        }
 
         Ok(Config {
             endpoint: endpoint.ok_or(ConfigError::MissingEndpoint)?,
             token: token.ok_or(ConfigError::MissingToken)?,
             interval_secs,
             buffer_max_size,
+            telemetry_enabled,
+            api_url,
         })
     }
 
