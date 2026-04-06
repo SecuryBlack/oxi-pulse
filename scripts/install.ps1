@@ -157,6 +157,10 @@ buffer_max_size = 8640
 
     # Configure restart on failure (sc.exe failure config)
     & sc.exe failure $ServiceName reset= 86400 actions= restart/10000/restart/30000/restart/60000 | Out-Null
+    # Trigger failure actions even on clean exit (exit code 0).
+    # This is required for auto-update: the agent exits cleanly after replacing
+    # its binary, and the SCM must restart it to pick up the new version.
+    & sc.exe failureflag $ServiceName 1 | Out-Null
 
     Start-Service -Name $ServiceName
     Write-Success "Service registered and started"
