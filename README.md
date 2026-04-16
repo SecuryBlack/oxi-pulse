@@ -82,14 +82,12 @@ The script installs the agent as a **Windows Service** with automatic restart on
 
 ### Using SecuryBlack Cloud
 
-Sign in to [app.securyblack.com][urls.securyblack_app], add a server, and copy the
+Sign in to [securyblack.com][urls.securyblack_app], add a server, and copy the
 pre-filled install command — your endpoint and token are already included:
 
 ```bash
 # Linux
-curl -fsSL https://install.oxipulse.io | bash -s -- \
-  --endpoint ingest.securyblack.com \
-  --token <YOUR_TOKEN>
+curl -fsSL https://install.oxipulse.io | sudo bash -s -- \
 
 # Windows
 irm https://install.oxipulse.io/windows | iex -Endpoint ingest.securyblack.com -Token <YOUR_TOKEN>
