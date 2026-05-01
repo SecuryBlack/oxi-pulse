@@ -8,7 +8,8 @@
 [CmdletBinding()]
 param(
     [string]$Endpoint = "",
-    [string]$Token    = ""
+    [string]$Token    = "",
+    [string]$Mode     = ""
 )
 
 Set-StrictMode -Version Latest
@@ -97,6 +98,11 @@ try {
     # ─── Configuration ────────────────────────────────────────────────────────
     New-Item -ItemType Directory -Path $ConfigDir -Force | Out-Null
 
+    if ($Mode -eq "local_agent") {
+        if (-not $Endpoint) { $Endpoint = "http://localhost:4317" }
+        Write-Info "Mode: local_agent — OxiPulse will send metrics to localhost:4317"
+    }
+
     if (-not $Endpoint) {
         Write-Host ""
         $Endpoint = Read-Host "  OTLP endpoint (e.g. https://ingest.example.com:4317)"
@@ -114,6 +120,7 @@ try {
     @"
 # OxiPulse configuration
 # Do not share this file — it contains your auth token.
+mode = "$($Mode ? $Mode : "direct")"
 endpoint = "$Endpoint"
 token = "$Token"
 interval_secs = 10

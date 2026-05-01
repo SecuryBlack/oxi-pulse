@@ -33,6 +33,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --endpoint) ENDPOINT="$2"; shift 2 ;;
     --token)    TOKEN="$2";    shift 2 ;;
+    --mode)     MODE="$2";     shift 2 ;;
     *) die "Unknown argument: $1" ;;
   esac
 done
@@ -105,6 +106,12 @@ success "Binary installed"
 mkdir -p "$CONFIG_DIR"
 chmod 700 "$CONFIG_DIR"
 
+# Apply local_agent defaults
+if [[ "${MODE:-}" == "local_agent" ]]; then
+  ENDPOINT="${ENDPOINT:-http://localhost:4317}"
+  info "Mode: local_agent — OxiPulse will send metrics to localhost:4317"
+fi
+
 # Ask interactively if not provided via arguments
 if [[ -z "$ENDPOINT" ]]; then
   echo ""
@@ -122,6 +129,7 @@ info "Writing config to ${CONFIG_FILE}…"
 cat > "$CONFIG_FILE" <<EOF
 # OxiPulse configuration
 # Do not share this file — it contains your auth token.
+mode = "${MODE:-direct}"
 endpoint = "${ENDPOINT}"
 token = "${TOKEN}"
 interval_secs = 10

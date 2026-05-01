@@ -7,6 +7,9 @@ pub struct Config {
     pub endpoint: String,
     /// Authentication token sent as a header to the OTLP collector
     pub token: String,
+    /// Deployment mode: "direct" (default) or "local_agent" (sends to localhost:4317)
+    #[serde(default)]
+    pub mode: Option<String>,
     /// How often to collect and send metrics, in seconds (default: 10)
     #[serde(default = "default_interval")]
     pub interval_secs: u64,
@@ -70,6 +73,7 @@ impl Config {
         let mut buffer_max_size: usize = default_buffer_max();
         let mut telemetry_enabled: Option<bool> = None;
         let mut api_url: String = default_api_url();
+        let mut mode: Option<String> = None;
 
         let config_path = Self::config_file_path();
         if Path::new(&config_path).exists() {
@@ -95,6 +99,9 @@ impl Config {
             }
             if let Some(v) = file.get("api_url").and_then(|v| v.as_str()) {
                 api_url = v.to_string();
+            }
+            if let Some(v) = file.get("mode").and_then(|v| v.as_str()) {
+                mode = Some(v.to_string());
             }
         }
 
@@ -125,6 +132,16 @@ impl Config {
         if let Ok(v) = env::var("OXIPULSE_API_URL") {
             api_url = v;
         }
+        if let Ok(v) = env::var("OXIPULSE_MODE") {
+            mode = Some(v);
+        }
+
+        // When in local_agent mode, default endpoint to localhost:4317
+        let endpoint = if mode.as_deref() == Some("local_agent") {
+            endpoint.or(Some("http://localhost:4317".to_string()))
+        } else {
+            endpoint
+        };
 
         Ok(Config {
             endpoint: endpoint.ok_or(ConfigError::MissingEndpoint)?,
@@ -133,6 +150,7 @@ impl Config {
             buffer_max_size,
             telemetry_enabled,
             api_url,
+            mode,
         })
     }
 
