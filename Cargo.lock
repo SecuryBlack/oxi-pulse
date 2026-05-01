@@ -1173,13 +1173,15 @@ dependencies = [
 
 [[package]]
 name = "oxipulse"
-version = "0.1.8"
+version = "0.1.10"
 dependencies = [
  "opentelemetry",
  "opentelemetry-otlp",
  "opentelemetry_sdk",
+ "reqwest",
  "self_update",
  "serde",
+ "serde_json",
  "sysinfo",
  "tokio",
  "toml",
