@@ -88,6 +88,14 @@ try {
         Write-Warn "No checksum file found, skipping verification"
     }
 
+    # ─── Stop existing service before replacing binary ────────────────────────
+    if (Get-Service -Name $ServiceName -ErrorAction SilentlyContinue) {
+        Write-Info "Stopping existing service '$ServiceName'..."
+        Stop-Service -Name $ServiceName -Force -ErrorAction SilentlyContinue
+        & sc.exe delete $ServiceName | Out-Null
+        Start-Sleep -Seconds 2
+    }
+
     # ─── Install binary ───────────────────────────────────────────────────────
     Write-Info "Installing binary to $InstallDir..."
     Expand-Archive -Path $zipPath -DestinationPath $tmpDir -Force
@@ -147,13 +155,6 @@ buffer_max_size = 8640
 
     # ─── Windows Service ──────────────────────────────────────────────────────
     Write-Info "Registering Windows Service '$ServiceName'..."
-
-    # Remove existing service if present
-    if (Get-Service -Name $ServiceName -ErrorAction SilentlyContinue) {
-        Stop-Service -Name $ServiceName -Force -ErrorAction SilentlyContinue
-        & sc.exe delete $ServiceName | Out-Null
-        Start-Sleep -Seconds 1
-    }
 
     $binPath = "$InstallDir\$BinaryName"
     New-Service -Name $ServiceName `
