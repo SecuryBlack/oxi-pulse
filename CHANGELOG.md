@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.1.11] - 2026-05-07
+## [0.1.12] - 2026-05-07
 
 ### Fixed
 - **Windows**: Eliminate VCRUNTIME140.dll dependency by statically linking the MSVC C runtime. The binary is now fully self-contained and runs on clean Windows installations without requiring Visual C++ Redistributable.
@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Self-updating mechanism via GitHub Releases.
 - Offline buffer with exponential backoff for network outages.
 
-[Unreleased]: https://github.com/SecuryBlack/oxi-pulse/compare/v0.1.11...HEAD
+[Unreleased]: https://github.com/SecuryBlack/oxi-pulse/compare/v0.1.12...HEAD
+[0.1.12]: https://github.com/SecuryBlack/oxi-pulse/compare/v0.1.11...v0.1.12
 [0.1.11]: https://github.com/SecuryBlack/oxi-pulse/compare/v0.1.10...v0.1.11
 [0.1.10]: https://github.com/SecuryBlack/oxi-pulse/releases/tag/v0.1.10
