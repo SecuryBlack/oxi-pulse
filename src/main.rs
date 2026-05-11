@@ -267,8 +267,17 @@ fn run_console() {
     });
 }
 
+fn check_version_arg() {
+    let args: Vec<String> = std::env::args().collect();
+    if args.len() > 1 && (args[1] == "--version" || args[1] == "-V") {
+        println!("oxipulse {}", env!("CARGO_PKG_VERSION"));
+        std::process::exit(0);
+    }
+}
+
 #[cfg(windows)]
 fn main() {
+    check_version_arg();
     // ERROR_FAILED_SERVICE_CONTROLLER_CONNECT (1063): process was not started
     // by the SCM, so run in console mode instead.
     match service::start() {
@@ -288,6 +297,7 @@ fn main() {
 #[cfg(not(windows))]
 #[tokio::main]
 async fn main() {
+    check_version_arg();
     let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel();
     tokio::spawn(async move {
         tokio::signal::ctrl_c().await.ok();
