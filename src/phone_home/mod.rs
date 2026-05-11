@@ -13,6 +13,7 @@ pub struct RemoteConfig {
 #[derive(Debug, Serialize)]
 struct TelemetryPing<'a> {
     agent_version: &'a str,
+    agent_type: &'a str,
     os: &'a str,
     arch: &'a str,
     interval_secs: u64,
@@ -76,6 +77,7 @@ pub fn start_telemetry_task(
 
             let ping = TelemetryPing {
                 agent_version: env!("CARGO_PKG_VERSION"),
+                agent_type: "oxipulse",
                 os: std::env::consts::OS,
                 arch: std::env::consts::ARCH,
                 interval_secs,
