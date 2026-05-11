@@ -148,8 +148,8 @@ async fn run(mut shutdown: tokio::sync::oneshot::Receiver<()>) {
                         ram_total_mb = m.ram_total_bytes / 1024 / 1024,
                         disk_used_gb = m.disk_used_bytes / 1024 / 1024 / 1024,
                         disk_total_gb = m.disk_total_bytes / 1024 / 1024 / 1024,
-                        net_in_kb = m.net_bytes_in / 1024,
-                        net_out_kb = m.net_bytes_out / 1024,
+                        net_in_kbps = m.net_bps_in / 1024.0,
+                        net_out_kbps = m.net_bps_out / 1024.0,
                         "metrics collected and recorded"
                     );
                 } else {

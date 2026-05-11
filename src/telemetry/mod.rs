@@ -1,6 +1,6 @@
 use opentelemetry::{
     global,
-    metrics::{Counter, Gauge, MeterProvider as _},
+    metrics::{Gauge, MeterProvider as _},
     KeyValue,
 };
 use opentelemetry_otlp::{MetricExporter, WithExportConfig, WithTonicConfig};
@@ -20,8 +20,8 @@ pub struct Instruments {
     ram_total: Gauge<u64>,
     disk_used: Gauge<u64>,
     disk_total: Gauge<u64>,
-    net_bytes_in: Counter<u64>,
-    net_bytes_out: Counter<u64>,
+    net_bps_in: Gauge<f64>,
+    net_bps_out: Gauge<f64>,
 }
 
 /// Initialise the OTLP metrics pipeline and return the instruments to record into.
@@ -90,15 +90,15 @@ pub fn init(
             .with_description("Total disk space in bytes")
             .with_unit("By")
             .build(),
-        net_bytes_in: meter
-            .u64_counter("system.network.received")
-            .with_description("Network bytes received since last interval")
-            .with_unit("By")
+        net_bps_in: meter
+            .f64_gauge("system.network.receive")
+            .with_description("Network receive throughput in bytes per second")
+            .with_unit("By/s")
             .build(),
-        net_bytes_out: meter
-            .u64_counter("system.network.transmitted")
-            .with_description("Network bytes transmitted since last interval")
-            .with_unit("By")
+        net_bps_out: meter
+            .f64_gauge("system.network.transmit")
+            .with_description("Network transmit throughput in bytes per second")
+            .with_unit("By/s")
             .build(),
     };
 
@@ -113,6 +113,6 @@ pub fn record(instruments: &Instruments, m: &Metrics) {
     instruments.ram_total.record(m.ram_total_bytes, attrs);
     instruments.disk_used.record(m.disk_used_bytes, attrs);
     instruments.disk_total.record(m.disk_total_bytes, attrs);
-    instruments.net_bytes_in.add(m.net_bytes_in, attrs);
-    instruments.net_bytes_out.add(m.net_bytes_out, attrs);
+    instruments.net_bps_in.record(m.net_bps_in, attrs);
+    instruments.net_bps_out.record(m.net_bps_out, attrs);
 }

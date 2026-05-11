@@ -1,4 +1,4 @@
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use sysinfo::{Disks, Networks, System};
 
 #[derive(Debug)]
@@ -10,13 +10,18 @@ pub struct Metrics {
     pub ram_used_bytes: u64,
     pub disk_total_bytes: u64,
     pub disk_used_bytes: u64,
-    pub net_bytes_in: u64,
-    pub net_bytes_out: u64,
+    /// Network receive throughput in bytes per second.
+    pub net_bps_in: f64,
+    /// Network transmit throughput in bytes per second.
+    pub net_bps_out: f64,
 }
 
 pub struct Collector {
     sys: System,
     networks: Networks,
+    last_collect: Option<Instant>,
+    last_net_bytes_in: u64,
+    last_net_bytes_out: u64,
 }
 
 impl Collector {
@@ -24,6 +29,9 @@ impl Collector {
         Self {
             sys: System::new_all(),
             networks: Networks::new_with_refreshed_list(),
+            last_collect: None,
+            last_net_bytes_in: 0,
+            last_net_bytes_out: 0,
         }
     }
 
@@ -52,10 +60,35 @@ impl Collector {
             .map(|d| d.total_space().saturating_sub(d.available_space()))
             .sum();
 
-        // Network — aggregate all interfaces
+        // Network — aggregate all interfaces and compute throughput
         self.networks.refresh(true);
-        let net_bytes_in: u64 = self.networks.iter().map(|(_, n)| n.received()).sum();
-        let net_bytes_out: u64 = self.networks.iter().map(|(_, n)| n.transmitted()).sum();
+        let raw_bytes_in: u64 = self.networks.iter().map(|(_, n)| n.received()).sum();
+        let raw_bytes_out: u64 = self.networks.iter().map(|(_, n)| n.transmitted()).sum();
+
+        let now = Instant::now();
+        let (net_bps_in, net_bps_out) = match self.last_collect {
+            Some(last) => {
+                let elapsed_secs = last.elapsed().as_secs_f64();
+                if elapsed_secs > 0.0 {
+                    let delta_in = raw_bytes_in.saturating_sub(self.last_net_bytes_in);
+                    let delta_out = raw_bytes_out.saturating_sub(self.last_net_bytes_out);
+                    (
+                        delta_in as f64 / elapsed_secs,
+                        delta_out as f64 / elapsed_secs,
+                    )
+                } else {
+                    (0.0, 0.0)
+                }
+            }
+            None => {
+                // First collection: no previous data to compare against.
+                (0.0, 0.0)
+            }
+        };
+
+        self.last_collect = Some(now);
+        self.last_net_bytes_in = raw_bytes_in;
+        self.last_net_bytes_out = raw_bytes_out;
 
         Metrics {
             timestamp_unix_ms,
@@ -64,8 +97,8 @@ impl Collector {
             ram_used_bytes,
             disk_total_bytes,
             disk_used_bytes,
-            net_bytes_in,
-            net_bytes_out,
+            net_bps_in,
+            net_bps_out,
         }
     }
 }
