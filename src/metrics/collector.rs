@@ -62,10 +62,18 @@ impl Collector {
         let disks = Disks::new_with_refreshed_list();
         let disk_infos: Vec<DiskInfo> = disks
             .iter()
-            .map(|d| DiskInfo {
-                name: d.name().to_string_lossy().to_string(),
-                total_bytes: d.total_space(),
-                used_bytes: d.total_space().saturating_sub(d.available_space()),
+            .map(|d| {
+                let label = d.name().to_string_lossy().to_string();
+                let name = if label.is_empty() {
+                    d.mount_point().to_string_lossy().to_string()
+                } else {
+                    label
+                };
+                DiskInfo {
+                    name,
+                    total_bytes: d.total_space(),
+                    used_bytes: d.total_space().saturating_sub(d.available_space()),
+                }
             })
             .collect();
 
