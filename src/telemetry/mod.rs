@@ -12,7 +12,7 @@ use std::time::Duration;
 use tonic::metadata::{MetadataMap, MetadataValue};
 use tonic::transport::ClientTlsConfig;
 
-use crate::metrics::Metrics;
+use crate::metrics::{DiskInfo, Metrics};
 
 pub struct Instruments {
     cpu_usage: Gauge<f64>,
@@ -107,12 +107,18 @@ pub fn init(
 
 /// Record a collected `Metrics` snapshot into the OTel instruments.
 pub fn record(instruments: &Instruments, m: &Metrics) {
-    let attrs: &[KeyValue] = &[];
-    instruments.cpu_usage.record(m.cpu_usage_percent as f64, attrs);
-    instruments.ram_used.record(m.ram_used_bytes, attrs);
-    instruments.ram_total.record(m.ram_total_bytes, attrs);
-    instruments.disk_used.record(m.disk_used_bytes, attrs);
-    instruments.disk_total.record(m.disk_total_bytes, attrs);
-    instruments.net_bps_in.record(m.net_bps_in, attrs);
-    instruments.net_bps_out.record(m.net_bps_out, attrs);
+    for disk in &m.disks {
+        let attrs: &[KeyValue] = &[KeyValue::new("disk.name", disk.name.clone())];
+        instruments
+            .disk_used
+            .record(disk.used_bytes, attrs);
+        instruments
+            .disk_total
+            .record(disk.total_bytes, attrs);
+    }
+    instruments.cpu_usage.record(m.cpu_usage_percent as f64, &[]);
+    instruments.ram_used.record(m.ram_used_bytes, &[]);
+    instruments.ram_total.record(m.ram_total_bytes, &[]);
+    instruments.net_bps_in.record(m.net_bps_in, &[]);
+    instruments.net_bps_out.record(m.net_bps_out, &[]);
 }

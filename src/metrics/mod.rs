@@ -1,2 +1,2 @@
 mod collector;
-pub use collector::{Collector, Metrics};
+pub use collector::{Collector, DiskInfo, Metrics};

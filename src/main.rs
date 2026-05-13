@@ -146,8 +146,7 @@ async fn run(mut shutdown: tokio::sync::oneshot::Receiver<()>) {
                         cpu = format!("{:.1}%", m.cpu_usage_percent),
                         ram_used_mb = m.ram_used_bytes / 1024 / 1024,
                         ram_total_mb = m.ram_total_bytes / 1024 / 1024,
-                        disk_used_gb = m.disk_used_bytes / 1024 / 1024 / 1024,
-                        disk_total_gb = m.disk_total_bytes / 1024 / 1024 / 1024,
+                        disks = m.disks.iter().map(|d| format!("{}={:.1}%", d.name, d.used_bytes as f64 / d.total_bytes as f64 * 100.0)).collect::<Vec<_>>().join(", "),
                         net_in_kbps = m.net_bps_in / 1024.0,
                         net_out_kbps = m.net_bps_out / 1024.0,
                         "metrics collected and recorded"
