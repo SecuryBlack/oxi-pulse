@@ -63,12 +63,11 @@ impl Collector {
         let disk_infos: Vec<DiskInfo> = disks
             .iter()
             .map(|d| {
-                let label = d.name().to_string_lossy().to_string();
-                let name = if label.is_empty() {
-                    d.mount_point().to_string_lossy().to_string()
-                } else {
-                    label
-                };
+                let mut name = d.mount_point().to_string_lossy().to_string();
+                name = name.trim_end_matches(&['\\', '/'][..]).to_string();
+                if name.is_empty() {
+                    name = d.name().to_string_lossy().to_string();
+                }
                 DiskInfo {
                     name,
                     total_bytes: d.total_space(),
