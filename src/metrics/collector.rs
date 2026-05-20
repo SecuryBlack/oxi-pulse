@@ -63,11 +63,22 @@ impl Collector {
         let disk_infos: Vec<DiskInfo> = disks
             .iter()
             .map(|d| {
-                let mut name = d.mount_point().to_string_lossy().to_string();
-                name = name.trim_end_matches(&['\\', '/'][..]).to_string();
-                if name.is_empty() {
-                    name = d.name().to_string_lossy().to_string();
-                }
+                let name = if cfg!(target_os = "windows") {
+                    let mut n = d.mount_point().to_string_lossy().to_string();
+                    n = n.trim_end_matches(&['\\', '/'][..]).to_string();
+                    if n.is_empty() {
+                        d.name().to_string_lossy().to_string()
+                    } else {
+                        n
+                    }
+                } else {
+                    let n = d.name().to_string_lossy().to_string();
+                    if n.is_empty() {
+                        d.mount_point().to_string_lossy().to_string()
+                    } else {
+                        n
+                    }
+                };
                 DiskInfo {
                     name,
                     total_bytes: d.total_space(),
