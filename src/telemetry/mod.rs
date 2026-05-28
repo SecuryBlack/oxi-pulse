@@ -12,7 +12,7 @@ use std::time::Duration;
 use tonic::metadata::{MetadataMap, MetadataValue};
 use tonic::transport::ClientTlsConfig;
 
-use crate::metrics::{DiskInfo, Metrics};
+use crate::metrics::Metrics;
 
 pub struct Instruments {
     cpu_usage: Gauge<f64>,
@@ -22,6 +22,7 @@ pub struct Instruments {
     disk_total: Gauge<u64>,
     net_bps_in: Gauge<f64>,
     net_bps_out: Gauge<f64>,
+    net_latency: Gauge<f64>,
 }
 
 /// Initialise the OTLP metrics pipeline and return the instruments to record into.
@@ -100,6 +101,11 @@ pub fn init(
             .with_description("Network transmit throughput in bytes per second")
             .with_unit("By/s")
             .build(),
+        net_latency: meter
+            .f64_gauge("system.network.latency")
+            .with_description("Network latency to target in milliseconds")
+            .with_unit("ms")
+            .build(),
     };
 
     Ok((instruments, provider))
@@ -121,4 +127,13 @@ pub fn record(instruments: &Instruments, m: &Metrics) {
     instruments.ram_total.record(m.ram_total_bytes, &[]);
     instruments.net_bps_in.record(m.net_bps_in, &[]);
     instruments.net_bps_out.record(m.net_bps_out, &[]);
+
+    for lat in &m.latencies {
+        let attrs: &[KeyValue] = &[
+            KeyValue::new("target", lat.target.clone()),
+            KeyValue::new("status", if lat.latency_ms.is_some() { "success" } else { "failure" }),
+        ];
+        let val = lat.latency_ms.unwrap_or(-1.0);
+        instruments.net_latency.record(val, attrs);
+    }
 }

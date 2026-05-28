@@ -117,7 +117,7 @@ pub async fn is_reachable(endpoint: &str) -> bool {
 }
 
 /// Extract "host:port" from URLs like "http://host:4317" or "https://host:4317".
-fn parse_host_port(endpoint: &str) -> Option<String> {
+pub fn parse_host_port(endpoint: &str) -> Option<String> {
     let without_scheme = endpoint
         .trim_start_matches("https://")
         .trim_start_matches("http://")

@@ -25,6 +25,9 @@ pub struct Config {
     /// Defaults to "https://api.securyblack.com".
     #[serde(default = "default_api_url")]
     pub api_url: String,
+    /// Optional list of latency targets to check. Defaults to empty (which falls back to the endpoint).
+    #[serde(default)]
+    pub latency_targets: Vec<String>,
 }
 
 fn default_interval() -> u64 {
@@ -74,6 +77,7 @@ impl Config {
         let mut telemetry_enabled: Option<bool> = None;
         let mut api_url: String = default_api_url();
         let mut mode: Option<String> = None;
+        let mut latency_targets: Vec<String> = Vec::new();
 
         let config_path = Self::config_file_path();
         if Path::new(&config_path).exists() {
@@ -102,6 +106,12 @@ impl Config {
             }
             if let Some(v) = file.get("mode").and_then(|v| v.as_str()) {
                 mode = Some(v.to_string());
+            }
+            if let Some(arr) = file.get("latency_targets").and_then(|v| v.as_array()) {
+                latency_targets = arr
+                    .iter()
+                    .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                    .collect();
             }
         }
 
@@ -135,6 +145,13 @@ impl Config {
         if let Ok(v) = env::var("OXIPULSE_MODE") {
             mode = Some(v);
         }
+        if let Ok(v) = env::var("OXIPULSE_LATENCY_TARGETS") {
+            latency_targets = v
+                .split(',')
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect();
+        }
 
         // When in local_agent mode, default endpoint to localhost:4317
         let endpoint = if mode.as_deref() == Some("local_agent") {
@@ -151,6 +168,7 @@ impl Config {
             telemetry_enabled,
             api_url,
             mode,
+            latency_targets,
         })
     }
 

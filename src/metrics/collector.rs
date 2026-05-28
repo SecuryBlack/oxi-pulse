@@ -1,5 +1,13 @@
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use sysinfo::{Disks, Networks, System};
+use tokio::net::TcpStream;
+use crate::buffer::parse_host_port;
+
+#[derive(Debug, Clone)]
+pub struct LatencyMetric {
+    pub target: String,
+    pub latency_ms: Option<f64>,
+}
 
 #[derive(Debug)]
 pub struct DiskInfo {
@@ -20,6 +28,8 @@ pub struct Metrics {
     pub net_bps_in: f64,
     /// Network transmit throughput in bytes per second.
     pub net_bps_out: f64,
+    /// Network latency metrics to various targets in milliseconds.
+    pub latencies: Vec<LatencyMetric>,
 }
 
 pub struct Collector {
@@ -41,7 +51,7 @@ impl Collector {
         }
     }
 
-    pub fn collect(&mut self) -> Metrics {
+    pub async fn collect(&mut self, latency_targets: &[String], default_endpoint: &str) -> Metrics {
         // Timestamp at moment of reading
         let timestamp_unix_ms = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -117,6 +127,32 @@ impl Collector {
         self.last_net_bytes_in = raw_bytes_in;
         self.last_net_bytes_out = raw_bytes_out;
 
+        // Measure latencies concurrently
+        let mut ping_tasks = Vec::new();
+        let targets_to_ping = if latency_targets.is_empty() {
+            vec![default_endpoint.to_string()]
+        } else {
+            latency_targets.to_vec()
+        };
+
+        for target in targets_to_ping {
+            let task = tokio::spawn(async move {
+                let ms = ping_target(&target).await;
+                LatencyMetric {
+                    target,
+                    latency_ms: ms,
+                }
+            });
+            ping_tasks.push(task);
+        }
+
+        let mut latencies = Vec::new();
+        for task in ping_tasks {
+            if let Ok(res) = task.await {
+                latencies.push(res);
+            }
+        }
+
         Metrics {
             timestamp_unix_ms,
             cpu_usage_percent,
@@ -125,6 +161,35 @@ impl Collector {
             disks: disk_infos,
             net_bps_in,
             net_bps_out,
+            latencies,
         }
     }
+}
+
+/// Helper function to perform a single TCP ping.
+async fn ping_target(target: &str) -> Option<f64> {
+    let addr = parse_host_port(target)?;
+
+    let mut addrs: Vec<std::net::SocketAddr> = tokio::net::lookup_host(&addr).await.ok()?.collect();
+    if addrs.is_empty() {
+        return None;
+    }
+    // Prefer IPv4 to avoid slow timeouts on systems without functional IPv6 config
+    addrs.sort_by_key(|a| if a.is_ipv4() { 0u8 } else { 1u8 });
+
+    for sa in addrs {
+        let start = Instant::now();
+        match tokio::time::timeout(
+            std::time::Duration::from_secs(2),
+            TcpStream::connect(sa),
+        )
+        .await
+        {
+            Ok(Ok(_)) => {
+                return Some(start.elapsed().as_secs_f64() * 1000.0);
+            }
+            _ => {}
+        }
+    }
+    None
 }

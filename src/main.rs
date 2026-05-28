@@ -16,15 +16,32 @@ mod updater;
 #[cfg(windows)]
 fn init_logging() {
     let log_dir = r"C:\ProgramData\oxipulse";
-    let file_appender = tracing_appender::rolling::daily(log_dir, "oxipulse.log");
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
-        )
-        .with_writer(file_appender)
-        .with_ansi(false)
-        .init();
+    let write_test_path = format!(r"{}\.write_test", log_dir);
+
+    let use_stdout = std::env::var("OXIPULSE_LOG_STDOUT").is_ok()
+        || std::fs::create_dir_all(log_dir).is_err()
+        || std::fs::write(&write_test_path, "").is_err();
+
+    let _ = std::fs::remove_file(&write_test_path);
+
+    if use_stdout {
+        tracing_subscriber::fmt()
+            .with_env_filter(
+                tracing_subscriber::EnvFilter::try_from_default_env()
+                    .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
+            )
+            .init();
+    } else {
+        let file_appender = tracing_appender::rolling::daily(log_dir, "oxipulse.log");
+        tracing_subscriber::fmt()
+            .with_env_filter(
+                tracing_subscriber::EnvFilter::try_from_default_env()
+                    .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
+            )
+            .with_writer(file_appender)
+            .with_ansi(false)
+            .init();
+    }
 }
 
 #[cfg(not(windows))]
@@ -114,7 +131,7 @@ async fn run(mut shutdown: tokio::sync::oneshot::Receiver<()>) {
     loop {
         tokio::select! {
             _ = interval.tick() => {
-                let m = collector.collect();
+                let m = collector.collect(&cfg.latency_targets, &cfg.endpoint).await;
 
                 let did_check = !is_offline || backoff.should_check();
                 let reachable = if did_check {
@@ -149,6 +166,10 @@ async fn run(mut shutdown: tokio::sync::oneshot::Receiver<()>) {
                         disks = m.disks.iter().map(|d| format!("{}={:.1}%", d.name, d.used_bytes as f64 / d.total_bytes as f64 * 100.0)).collect::<Vec<_>>().join(", "),
                         net_in_kbps = m.net_bps_in / 1024.0,
                         net_out_kbps = m.net_bps_out / 1024.0,
+                        latencies = m.latencies.iter().map(|l| {
+                            let val = l.latency_ms.map(|ms| format!("{:.1}ms", ms)).unwrap_or_else(|| "fail".to_string());
+                            format!("{}={}", l.target, val)
+                        }).collect::<Vec<_>>().join(", "),
                         "metrics collected and recorded"
                     );
                 } else {
