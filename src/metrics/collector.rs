@@ -130,7 +130,7 @@ impl Collector {
         // Measure latencies concurrently
         let mut ping_tasks = Vec::new();
         let targets_to_ping = if latency_targets.is_empty() {
-            vec![default_endpoint.to_string()]
+            vec![default_endpoint.to_string(), "1.1.1.1:53".to_string()]
         } else {
             latency_targets.to_vec()
         };
