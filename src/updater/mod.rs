@@ -4,9 +4,9 @@ use tracing::{error, info, warn};
 const GITHUB_OWNER: &str = "securyblack";
 const GITHUB_REPO: &str = "oxi-pulse";
 const CHECK_INTERVAL: Duration = Duration::from_secs(86_400); // 24 hours
-const STARTUP_DELAY: Duration = Duration::from_secs(300);    // 5 minutes
+const STARTUP_DELAY: Duration = Duration::from_secs(60);      // 1 minute
 
-/// Spawn a background task that checks for a new release 5 minutes after
+/// Spawn a background task that checks for a new release 1 minute after
 /// startup and then once every 24 hours.
 /// If a newer version is found and downloaded, the process exits cleanly
 /// so the OS service manager (systemd / Windows Service) restarts it
@@ -15,7 +15,7 @@ pub fn start_daily_check() {
     tokio::spawn(async move {
         // Short delay on startup so the agent is fully initialised before
         // hitting the network, but short enough that a restart picks up
-        // a pending update within minutes.
+        // a pending update within 1 minute.
         tokio::time::sleep(STARTUP_DELAY).await;
 
         loop {
