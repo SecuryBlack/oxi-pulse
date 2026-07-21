@@ -116,20 +116,33 @@ pub async fn is_reachable(endpoint: &str) -> bool {
     false
 }
 
-/// Extract "host:port" from URLs like "http://host:4317" or "https://host:4317".
+/// Extract "host:port" from URLs like "http://host:4317", "https://host/v1/metrics", or "host:port".
 pub fn parse_host_port(endpoint: &str) -> Option<String> {
-    let without_scheme = endpoint
+    let raw = endpoint.trim();
+    let without_scheme = raw
         .trim_start_matches("https://")
-        .trim_start_matches("http://")
-        .trim_end_matches('/');
+        .trim_start_matches("http://");
 
-    // Already host:port or host
-    let addr = if without_scheme.contains(':') {
-        without_scheme.to_string()
+    // Extract authority (everything before path, query, or fragment)
+    let authority = without_scheme
+        .split('/')
+        .next()?
+        .split('?')
+        .next()?
+        .split('#')
+        .next()?
+        .trim();
+
+    if authority.is_empty() {
+        return None;
+    }
+
+    let addr = if authority.contains(':') {
+        authority.to_string()
     } else {
         // Use 443 for https://, 4317 otherwise
-        let default_port = if endpoint.starts_with("https://") { 443 } else { 4317 };
-        format!("{}:{}", without_scheme, default_port)
+        let default_port = if raw.starts_with("https://") { 443 } else { 4317 };
+        format!("{}:{}", authority, default_port)
     };
 
     Some(addr)
@@ -141,5 +154,34 @@ pub fn log_status_change(was_offline: bool, now_offline: bool, buffered: usize) 
         (false, true) => warn!("collector unreachable — switching to offline mode"),
         (true, false) => info!(flushing = buffered, "collector reachable — reconnected"),
         _ => {}
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_host_port() {
+        assert_eq!(
+            parse_host_port("http://localhost:4317"),
+            Some("localhost:4317".to_string())
+        );
+        assert_eq!(
+            parse_host_port("https://ingest.oxipulse.dev"),
+            Some("ingest.oxipulse.dev:443".to_string())
+        );
+        assert_eq!(
+            parse_host_port("https://ingest.oxipulse.dev/v1/metrics"),
+            Some("ingest.oxipulse.dev:443".to_string())
+        );
+        assert_eq!(
+            parse_host_port("https://ingest.oxipulse.dev:4317/v1/metrics"),
+            Some("ingest.oxipulse.dev:4317".to_string())
+        );
+        assert_eq!(
+            parse_host_port("ingest.oxipulse.dev:4317"),
+            Some("ingest.oxipulse.dev:4317".to_string())
+        );
     }
 }

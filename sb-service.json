@@ -1,0 +1,7 @@
+{
+  "name": "OxiPulse Agent",
+  "description": "Agente ultraligero en Rust para monitoreo de servidores",
+  "type": "rust",
+  "role": "agent",
+  "start": "cargo run"
+}
