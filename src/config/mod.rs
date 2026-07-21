@@ -3,6 +3,8 @@ use std::{env, fs, path::Path};
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
+    /// Agent version
+    pub version: Option<String>,
     /// OTLP collector endpoint (e.g. "https://ingest.example.com:4317")
     pub endpoint: String,
     /// Authentication token sent as a header to the OTLP collector
@@ -69,7 +71,7 @@ impl Config {
     /// Load config from `config.toml` (if present), then override with env vars.
     /// Fails with a clear error if required fields are missing.
     pub fn load() -> Result<Self, ConfigError> {
-        // Start with values from config.toml if it exists
+        let mut version: Option<String> = None;
         let mut endpoint: Option<String> = None;
         let mut token: Option<String> = None;
         let mut interval_secs: u64 = default_interval();
@@ -86,6 +88,9 @@ impl Config {
             let file: toml::Value = toml::from_str(&contents)
                 .map_err(|e| ConfigError::ParseError(e.to_string()))?;
 
+            if let Some(v) = file.get("version").and_then(|v| v.as_str()) {
+                version = Some(v.to_string());
+            }
             if let Some(v) = file.get("endpoint").and_then(|v| v.as_str()) {
                 endpoint = Some(v.to_string());
             }
@@ -153,6 +158,27 @@ impl Config {
                 .collect();
         }
 
+        let current_pkg_version = env!("CARGO_PKG_VERSION");
+        if version.as_deref() != Some(current_pkg_version) && Path::new(&config_path).exists() {
+            version = Some(current_pkg_version.to_string());
+            if let Ok(contents) = fs::read_to_string(&config_path) {
+                let updated = if contents.contains("version = ") {
+                    contents.lines().map(|line| {
+                        if line.trim_start().starts_with("version = ") {
+                            format!("version = \"{}\"", current_pkg_version)
+                        } else {
+                            line.to_string()
+                        }
+                    }).collect::<Vec<_>>().join("\n")
+                } else {
+                    format!("version = \"{}\"\n{}", current_pkg_version, contents)
+                };
+                let _ = fs::write(&config_path, updated);
+            }
+        } else if version.is_none() {
+            version = Some(current_pkg_version.to_string());
+        }
+
         // When in local_agent mode, default endpoint to localhost:4317
         let endpoint = if mode.as_deref() == Some("local_agent") {
             endpoint.or(Some("http://localhost:4317".to_string()))
@@ -161,6 +187,7 @@ impl Config {
         };
 
         Ok(Config {
+            version,
             endpoint: endpoint.ok_or(ConfigError::MissingEndpoint)?,
             token: token.ok_or(ConfigError::MissingToken)?,
             interval_secs,

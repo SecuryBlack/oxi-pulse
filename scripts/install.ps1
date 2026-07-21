@@ -132,6 +132,7 @@ try {
     @"
 # OxiPulse configuration
 # Do not share this file — it contains your auth token.
+version = "$version"
 mode = "$effectiveMode"
 endpoint = "$Endpoint"
 token = "$Token"
