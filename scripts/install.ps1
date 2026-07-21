@@ -15,6 +15,9 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+# Set TLS 1.2 protocol for PowerShell 5.1 compatibility on Windows Server
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 -bor [Net.SecurityProtocolType]::Tls11 -bor [Net.SecurityProtocolType]::Tls
+
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 function Write-Info    { param($msg) Write-Host "[oxipulse] $msg" -ForegroundColor Cyan }
 function Write-Success { param($msg) Write-Host "[oxipulse] $msg" -ForegroundColor Green }
@@ -125,10 +128,11 @@ try {
     if (-not $Token)    { Fail "Token cannot be empty" }
 
     Write-Info "Writing config to $ConfigFile..."
+    $effectiveMode = if ($Mode) { $Mode } else { "direct" }
     @"
 # OxiPulse configuration
 # Do not share this file — it contains your auth token.
-mode = "$($Mode ? $Mode : "direct")"
+mode = "$effectiveMode"
 endpoint = "$Endpoint"
 token = "$Token"
 interval_secs = 10
