@@ -115,7 +115,8 @@ cd oxi-pulse
 cargo build --release
 ```
 
-Requires Rust 1.70+.
+Requires Rust 1.85+ (Edition 2024).
+
 
 ---
 

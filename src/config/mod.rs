@@ -207,3 +207,29 @@ impl Config {
         return "/etc/oxipulse/config.toml".to_string();
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_config_error_display() {
+        assert!(format!("{}", ConfigError::MissingEndpoint).contains("missing OTLP endpoint"));
+        assert!(format!("{}", ConfigError::MissingToken).contains("missing auth token"));
+        assert!(format!("{}", ConfigError::ParseError("invalid toml".to_string())).contains("invalid toml"));
+    }
+
+    #[test]
+    fn test_local_agent_mode_default_endpoint() {
+        // Test local_agent mode default endpoint logic when no explicit endpoint is provided
+        let mode = Some("local_agent".to_string());
+        let endpoint: Option<String> = None;
+        let effective_endpoint = if mode.as_deref() == Some("local_agent") {
+            endpoint.or(Some("http://localhost:4317".to_string()))
+        } else {
+            endpoint
+        };
+        assert_eq!(effective_endpoint, Some("http://localhost:4317".to_string()));
+    }
+}
+

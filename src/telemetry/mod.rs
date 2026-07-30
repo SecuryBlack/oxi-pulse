@@ -15,9 +15,16 @@ use tonic::transport::ClientTlsConfig;
 use crate::metrics::Metrics;
 
 pub struct Instruments {
+    uptime: Gauge<u64>,
+    cpu_count: Gauge<u64>,
     cpu_usage: Gauge<f64>,
+    load_avg_1m: Gauge<f64>,
+    load_avg_5m: Gauge<f64>,
+    load_avg_15m: Gauge<f64>,
     ram_used: Gauge<u64>,
     ram_total: Gauge<u64>,
+    swap_used: Gauge<u64>,
+    swap_total: Gauge<u64>,
     disk_used: Gauge<u64>,
     disk_total: Gauge<u64>,
     net_bps_in: Gauge<f64>,
@@ -66,10 +73,35 @@ pub fn init(
     let meter = provider.meter("oxipulse");
 
     let instruments = Instruments {
+        uptime: meter
+            .u64_gauge("system.uptime")
+            .with_description("System uptime in seconds")
+            .with_unit("s")
+            .build(),
+        cpu_count: meter
+            .u64_gauge("system.cpu.count")
+            .with_description("Number of CPU logical cores")
+            .with_unit("{core}")
+            .build(),
         cpu_usage: meter
             .f64_gauge("system.cpu.usage")
             .with_description("CPU usage percentage (0-100)")
             .with_unit("%")
+            .build(),
+        load_avg_1m: meter
+            .f64_gauge("system.cpu.load_average.1m")
+            .with_description("System load average over 1 minute")
+            .with_unit("1")
+            .build(),
+        load_avg_5m: meter
+            .f64_gauge("system.cpu.load_average.5m")
+            .with_description("System load average over 5 minutes")
+            .with_unit("1")
+            .build(),
+        load_avg_15m: meter
+            .f64_gauge("system.cpu.load_average.15m")
+            .with_description("System load average over 15 minutes")
+            .with_unit("1")
             .build(),
         ram_used: meter
             .u64_gauge("system.memory.used")
@@ -79,6 +111,16 @@ pub fn init(
         ram_total: meter
             .u64_gauge("system.memory.total")
             .with_description("Total RAM in bytes")
+            .with_unit("By")
+            .build(),
+        swap_used: meter
+            .u64_gauge("system.memory.swap.used")
+            .with_description("Used Swap space in bytes")
+            .with_unit("By")
+            .build(),
+        swap_total: meter
+            .u64_gauge("system.memory.swap.total")
+            .with_description("Total Swap space in bytes")
             .with_unit("By")
             .build(),
         disk_used: meter
@@ -122,9 +164,16 @@ pub fn record(instruments: &Instruments, m: &Metrics) {
             .disk_total
             .record(disk.total_bytes, attrs);
     }
+    instruments.uptime.record(m.uptime_secs, &[]);
+    instruments.cpu_count.record(m.cpu_count as u64, &[]);
     instruments.cpu_usage.record(m.cpu_usage_percent as f64, &[]);
+    instruments.load_avg_1m.record(m.load_avg_1m, &[]);
+    instruments.load_avg_5m.record(m.load_avg_5m, &[]);
+    instruments.load_avg_15m.record(m.load_avg_15m, &[]);
     instruments.ram_used.record(m.ram_used_bytes, &[]);
     instruments.ram_total.record(m.ram_total_bytes, &[]);
+    instruments.swap_used.record(m.swap_used_bytes, &[]);
+    instruments.swap_total.record(m.swap_total_bytes, &[]);
     instruments.net_bps_in.record(m.net_bps_in, &[]);
     instruments.net_bps_out.record(m.net_bps_out, &[]);
 
@@ -137,3 +186,5 @@ pub fn record(instruments: &Instruments, m: &Metrics) {
         instruments.net_latency.record(val, attrs);
     }
 }
+
+

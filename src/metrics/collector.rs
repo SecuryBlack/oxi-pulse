@@ -18,11 +18,17 @@ pub struct DiskInfo {
 
 #[derive(Debug)]
 pub struct Metrics {
-    #[allow(dead_code)]
     pub timestamp_unix_ms: u64,
+    pub uptime_secs: u64,
+    pub cpu_count: usize,
     pub cpu_usage_percent: f32,
+    pub load_avg_1m: f64,
+    pub load_avg_5m: f64,
+    pub load_avg_15m: f64,
     pub ram_total_bytes: u64,
     pub ram_used_bytes: u64,
+    pub swap_total_bytes: u64,
+    pub swap_used_bytes: u64,
     pub disks: Vec<DiskInfo>,
     /// Network receive throughput in bytes per second.
     pub net_bps_in: f64,
@@ -31,6 +37,8 @@ pub struct Metrics {
     /// Network latency metrics to various targets in milliseconds.
     pub latencies: Vec<LatencyMetric>,
 }
+
+
 
 pub struct Collector {
     sys: System,
@@ -58,15 +66,23 @@ impl Collector {
             .unwrap_or_default()
             .as_millis() as u64;
 
+        // System Uptime & CPU Cores & Load Average
+        let uptime_secs = System::uptime();
+        let cpu_count = self.sys.cpus().len();
+        let load_avg = System::load_average();
+
         // CPU — requires two refreshes with a short gap for an accurate reading;
         // on the first call sysinfo returns 0, subsequent calls return real usage.
         self.sys.refresh_cpu_usage();
         let cpu_usage_percent = self.sys.global_cpu_usage();
 
-        // RAM
+        // RAM & Swap
         self.sys.refresh_memory();
         let ram_total_bytes = self.sys.total_memory();
         let ram_used_bytes = self.sys.used_memory();
+        let swap_total_bytes = self.sys.total_swap();
+        let swap_used_bytes = self.sys.used_swap();
+
 
         // Disk — collect per-disk info
         let disks = Disks::new_with_refreshed_list();
@@ -155,16 +171,25 @@ impl Collector {
 
         Metrics {
             timestamp_unix_ms,
+            uptime_secs,
+            cpu_count,
             cpu_usage_percent,
+            load_avg_1m: load_avg.one,
+            load_avg_5m: load_avg.five,
+            load_avg_15m: load_avg.fifteen,
             ram_total_bytes,
             ram_used_bytes,
+            swap_total_bytes,
+            swap_used_bytes,
             disks: disk_infos,
             net_bps_in,
             net_bps_out,
             latencies,
         }
     }
+
 }
+
 
 /// Helper function to perform a single TCP ping.
 async fn ping_target(target: &str) -> Option<f64> {
@@ -193,3 +218,19 @@ async fn ping_target(target: &str) -> Option<f64> {
     }
     None
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_collector_creation_and_collection() {
+        let mut collector = Collector::new();
+        let metrics = collector.collect(&[], "127.0.0.1:4317").await;
+
+        assert!(metrics.ram_total_bytes > 0);
+        assert!(metrics.timestamp_unix_ms > 0);
+        assert!(!metrics.latencies.is_empty());
+    }
+}
+

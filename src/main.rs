@@ -32,6 +32,26 @@ fn init_logging() {
             )
             .init();
     } else {
+        // Clean up log files older than 7 days
+        if let Ok(entries) = std::fs::read_dir(log_dir) {
+            let max_age = Duration::from_secs(7 * 24 * 3600);
+            let now = std::time::SystemTime::now();
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("log") {
+                    if let Ok(metadata) = entry.metadata() {
+                        if let Ok(modified) = metadata.modified() {
+                            if let Ok(age) = now.duration_since(modified) {
+                                if age > max_age {
+                                    let _ = std::fs::remove_file(path);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         let file_appender = tracing_appender::rolling::daily(log_dir, "oxipulse.log");
         tracing_subscriber::fmt()
             .with_env_filter(
@@ -43,6 +63,7 @@ fn init_logging() {
             .init();
     }
 }
+
 
 #[cfg(not(windows))]
 fn init_logging() {
@@ -186,12 +207,17 @@ async fn run(mut shutdown: tokio::sync::oneshot::Receiver<()>) {
                 }
             }
             _ = &mut shutdown => {
-                info!("shutdown signal received, stopping");
+                info!("shutdown signal received, flushing telemetry provider");
+                if let Err(e) = _provider.shutdown() {
+                    tracing::warn!("failed to shutdown OTLP exporter cleanly: {}", e);
+                }
+                info!("stopped");
                 break;
             }
         }
     }
 }
+
 
 // ── Windows Service ───────────────────────────────────────────────────────────
 

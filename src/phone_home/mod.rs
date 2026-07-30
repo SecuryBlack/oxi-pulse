@@ -60,6 +60,16 @@ pub fn start_telemetry_task(
 ) {
     tokio::spawn(async move {
         let started_at = Instant::now();
+        let client = match reqwest::Client::builder()
+            .timeout(Duration::from_secs(10))
+            .build()
+        {
+            Ok(c) => c,
+            Err(e) => {
+                warn!("failed to build telemetry HTTP client: {}", e);
+                return;
+            }
+        };
 
         // Wait 60 s before the first ping so the agent has time to settle.
         tokio::time::sleep(Duration::from_secs(60)).await;
@@ -87,22 +97,14 @@ pub fn start_telemetry_task(
                 last_error_kind: if offline { "connectivity" } else { "none" },
             };
 
-            send_ping(&api_url, &token, &ping).await;
+            send_ping(&client, &api_url, &token, &ping).await;
 
             tokio::time::sleep(Duration::from_secs(24 * 3600)).await;
         }
     });
 }
 
-async fn send_ping(api_url: &str, token: &str, ping: &TelemetryPing<'_>) {
-    let client = match reqwest::Client::builder()
-        .timeout(Duration::from_secs(10))
-        .build()
-    {
-        Ok(c) => c,
-        Err(_) => return,
-    };
-
+async fn send_ping(client: &reqwest::Client, api_url: &str, token: &str, ping: &TelemetryPing<'_>) {
     let url = format!("{}/agents/me/telemetry", api_url);
     match client.post(&url).bearer_auth(token).json(ping).send().await {
         Ok(resp) if resp.status().is_success() => {
@@ -116,3 +118,4 @@ async fn send_ping(api_url: &str, token: &str, ping: &TelemetryPing<'_>) {
         }
     }
 }
+
