@@ -6,7 +6,7 @@ use opentelemetry::{
 use opentelemetry_otlp::{MetricExporter, WithExportConfig, WithTonicConfig};
 use opentelemetry_sdk::{
     metrics::{PeriodicReader, SdkMeterProvider},
-    runtime, Resource,
+    Resource,
 };
 use std::time::Duration;
 use tonic::metadata::{MetadataMap, MetadataValue};
@@ -53,15 +53,17 @@ pub fn init(
         .build()?;
 
     // Periodic reader flushes on the same interval as our collection loop
-    let reader = PeriodicReader::builder(exporter, runtime::Tokio)
+    let reader = PeriodicReader::builder(exporter)
         .with_interval(Duration::from_secs(interval_secs))
         .build();
 
     // Build and register the global MeterProvider
-    let resource = Resource::new(vec![
-        KeyValue::new("service.name", "oxipulse"),
-        KeyValue::new("service.version", env!("CARGO_PKG_VERSION")),
-    ]);
+    let resource = Resource::builder()
+        .with_attributes([
+            KeyValue::new("service.name", "oxipulse"),
+            KeyValue::new("service.version", env!("CARGO_PKG_VERSION")),
+        ])
+        .build();
 
     let provider = SdkMeterProvider::builder()
         .with_reader(reader)

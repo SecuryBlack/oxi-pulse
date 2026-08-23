@@ -6,78 +6,18 @@ use std::time::Duration;
 use tokio::time;
 use tracing::info;
 
-mod buffer;
 mod config;
 mod metrics;
 mod phone_home;
 mod telemetry;
-mod updater;
-
-#[cfg(windows)]
-fn init_logging() {
-    let log_dir = r"C:\ProgramData\oxipulse";
-    let write_test_path = format!(r"{}\.write_test", log_dir);
-
-    let use_stdout = std::env::var("OXIPULSE_LOG_STDOUT").is_ok()
-        || std::fs::create_dir_all(log_dir).is_err()
-        || std::fs::write(&write_test_path, "").is_err();
-
-    let _ = std::fs::remove_file(&write_test_path);
-
-    if use_stdout {
-        tracing_subscriber::fmt()
-            .with_env_filter(
-                tracing_subscriber::EnvFilter::try_from_default_env()
-                    .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
-            )
-            .init();
-    } else {
-        // Clean up log files older than 7 days
-        if let Ok(entries) = std::fs::read_dir(log_dir) {
-            let max_age = Duration::from_secs(7 * 24 * 3600);
-            let now = std::time::SystemTime::now();
-            for entry in entries.flatten() {
-                let path = entry.path();
-                if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("log") {
-                    if let Ok(metadata) = entry.metadata() {
-                        if let Ok(modified) = metadata.modified() {
-                            if let Ok(age) = now.duration_since(modified) {
-                                if age > max_age {
-                                    let _ = std::fs::remove_file(path);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        let file_appender = tracing_appender::rolling::daily(log_dir, "oxipulse.log");
-        tracing_subscriber::fmt()
-            .with_env_filter(
-                tracing_subscriber::EnvFilter::try_from_default_env()
-                    .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
-            )
-            .with_writer(file_appender)
-            .with_ansi(false)
-            .init();
-    }
-}
-
-
-#[cfg(not(windows))]
-fn init_logging() {
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
-        )
-        .init();
-}
 
 /// Core agent loop. Runs until the shutdown receiver fires.
 async fn run(mut shutdown: tokio::sync::oneshot::Receiver<()>) {
-    init_logging();
+    let log_dir = sb_agent_core::config::default_config_path("oxipulse")
+        .parent()
+        .expect("config path always has a parent")
+        .to_path_buf();
+    sb_agent_core::logging::init("oxipulse", &log_dir, "info");
 
     info!("OxiPulse v{} starting", env!("CARGO_PKG_VERSION"));
 
@@ -91,6 +31,12 @@ async fn run(mut shutdown: tokio::sync::oneshot::Receiver<()>) {
 
     info!(endpoint = %cfg.endpoint, interval_secs = cfg.interval_secs, "config loaded");
 
+    let status_handle = sb_agent_core::status::StatusHandle::new("oxipulse", env!("CARGO_PKG_VERSION"));
+    sb_agent_core::status::spawn_server(
+        status_handle.clone(),
+        sb_agent_core::status::default_socket_path("oxipulse"),
+    );
+
     let (instruments, _provider) = match telemetry::init(&cfg.endpoint, &cfg.token, cfg.interval_secs) {
         Ok(v) => v,
         Err(e) => {
@@ -100,8 +46,14 @@ async fn run(mut shutdown: tokio::sync::oneshot::Receiver<()>) {
     };
 
     info!("OTLP exporter initialised");
+    status_handle.set_state("running");
 
-    updater::start_daily_check();
+    sb_agent_core::updater::start_daily_check(sb_agent_core::updater::UpdaterConfig::new(
+        "securyblack",
+        "oxi-pulse",
+        "oxipulse",
+        env!("CARGO_PKG_VERSION"),
+    ));
 
     // ── Telemetry opt-in ─────────────────────────────────────────────────────
     // Resolve effective telemetry flag:
@@ -144,8 +96,8 @@ async fn run(mut shutdown: tokio::sync::oneshot::Receiver<()>) {
     // ─────────────────────────────────────────────────────────────────────────
 
     let mut collector = metrics::Collector::new();
-    let mut offline_buffer = buffer::OfflineBuffer::new(cfg.buffer_max_size);
-    let mut backoff = buffer::Backoff::new(cfg.interval_secs);
+    let mut offline_buffer = sb_agent_core::buffer::OfflineBuffer::new(cfg.buffer_max_size);
+    let mut backoff = sb_agent_core::buffer::Backoff::new(cfg.interval_secs);
     let mut is_offline = false;
     let mut interval = time::interval(Duration::from_secs(cfg.interval_secs));
 
@@ -156,13 +108,13 @@ async fn run(mut shutdown: tokio::sync::oneshot::Receiver<()>) {
 
                 let did_check = !is_offline || backoff.should_check();
                 let reachable = if did_check {
-                    buffer::is_reachable(&cfg.endpoint).await
+                    sb_agent_core::net::is_reachable(&cfg.endpoint).await
                 } else {
                     false
                 };
 
                 if reachable {
-                    buffer::log_status_change(is_offline, false, offline_buffer.len());
+                    sb_agent_core::buffer::log_status_change(is_offline, false, offline_buffer.len());
 
                     if is_offline {
                         let buffered = offline_buffer.drain_all();
@@ -193,8 +145,15 @@ async fn run(mut shutdown: tokio::sync::oneshot::Receiver<()>) {
                         }).collect::<Vec<_>>().join(", "),
                         "metrics collected and recorded"
                     );
+                    status_handle.set_details(serde_json::json!({
+                        "cpu_usage_percent": m.cpu_usage_percent,
+                        "ram_used_bytes": m.ram_used_bytes,
+                        "ram_total_bytes": m.ram_total_bytes,
+                        "buffered": offline_buffer.len(),
+                        "offline": false,
+                    }));
                 } else {
-                    buffer::log_status_change(is_offline, true, 0);
+                    sb_agent_core::buffer::log_status_change(is_offline, true, 0);
                     is_offline = true;
                     is_offline_atomic.store(true, Ordering::Relaxed);
                     if did_check {
@@ -204,10 +163,15 @@ async fn run(mut shutdown: tokio::sync::oneshot::Receiver<()>) {
                     offline_buffer.push(m);
                     buffer_len_atomic.store(offline_buffer.len() as u64, Ordering::Relaxed);
                     tracing::warn!(buffered = offline_buffer.len(), max = cfg.buffer_max_size, "offline — buffering metrics");
+                    status_handle.set_details(serde_json::json!({
+                        "buffered": offline_buffer.len(),
+                        "offline": true,
+                    }));
                 }
             }
             _ = &mut shutdown => {
                 info!("shutdown signal received, flushing telemetry provider");
+                status_handle.set_state("stopping");
                 if let Err(e) = _provider.shutdown() {
                     tracing::warn!("failed to shutdown OTLP exporter cleanly: {}", e);
                 }
@@ -218,100 +182,6 @@ async fn run(mut shutdown: tokio::sync::oneshot::Receiver<()>) {
     }
 }
 
-
-// ── Windows Service ───────────────────────────────────────────────────────────
-
-#[cfg(windows)]
-mod service {
-    use std::ffi::OsString;
-    use std::time::Duration;
-    use windows_service::{
-        define_windows_service,
-        service::{
-            ServiceControl, ServiceControlAccept, ServiceExitCode, ServiceState, ServiceStatus,
-            ServiceType,
-        },
-        service_control_handler::{self, ServiceControlHandlerResult},
-        service_dispatcher,
-    };
-
-    const SERVICE_NAME: &str = "OxiPulse";
-
-    define_windows_service!(ffi_service_main, service_main);
-
-    /// Called by the SCM. Blocks until the service stops.
-    pub fn start() -> Result<(), windows_service::Error> {
-        service_dispatcher::start(SERVICE_NAME, ffi_service_main)
-    }
-
-    fn service_main(_arguments: Vec<OsString>) {
-        let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
-        let shutdown_tx = std::sync::Mutex::new(Some(shutdown_tx));
-
-        let status_handle = service_control_handler::register(
-            SERVICE_NAME,
-            move |control_event| match control_event {
-                ServiceControl::Stop | ServiceControl::Shutdown => {
-                    if let Ok(mut guard) = shutdown_tx.lock() {
-                        if let Some(tx) = guard.take() {
-                            let _ = tx.send(());
-                        }
-                    }
-                    ServiceControlHandlerResult::NoError
-                }
-                ServiceControl::Interrogate => ServiceControlHandlerResult::NoError,
-                _ => ServiceControlHandlerResult::NotImplemented,
-            },
-        )
-        .expect("failed to register service control handler");
-
-        status_handle
-            .set_service_status(ServiceStatus {
-                service_type: ServiceType::OWN_PROCESS,
-                current_state: ServiceState::Running,
-                controls_accepted: ServiceControlAccept::STOP | ServiceControlAccept::SHUTDOWN,
-                exit_code: ServiceExitCode::Win32(0),
-                checkpoint: 0,
-                wait_hint: Duration::default(),
-                process_id: None,
-            })
-            .expect("failed to set service status Running");
-
-        let rt = tokio::runtime::Builder::new_multi_thread()
-            .enable_all()
-            .build()
-            .expect("failed to build tokio runtime");
-
-        rt.block_on(super::run(shutdown_rx));
-
-        let _ = status_handle.set_service_status(ServiceStatus {
-            service_type: ServiceType::OWN_PROCESS,
-            current_state: ServiceState::Stopped,
-            controls_accepted: ServiceControlAccept::empty(),
-            exit_code: ServiceExitCode::Win32(0),
-            checkpoint: 0,
-            wait_hint: Duration::default(),
-            process_id: None,
-        });
-    }
-}
-
-#[cfg(windows)]
-fn run_console() {
-    let rt = tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .build()
-        .expect("failed to build tokio runtime");
-
-    rt.block_on(async {
-        let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel();
-        tokio::spawn(async move {
-            tokio::signal::ctrl_c().await.ok();
-            let _ = shutdown_tx.send(());
-        });
-        run(shutdown_rx).await;
-    });
-}
 
 fn check_version_arg() {
     let args: Vec<String> = std::env::args().collect();
@@ -326,10 +196,10 @@ fn main() {
     check_version_arg();
     // ERROR_FAILED_SERVICE_CONTROLLER_CONNECT (1063): process was not started
     // by the SCM, so run in console mode instead.
-    match service::start() {
+    match sb_agent_core::service::windows::run_service("OxiPulse", |rx| run(rx)) {
         Ok(_) => {}
-        Err(windows_service::Error::Winapi(e)) if e.raw_os_error() == Some(1063) => {
-            run_console();
+        Err(e) if sb_agent_core::service::windows::is_not_started_by_scm(&e) => {
+            sb_agent_core::service::run_console(run);
         }
         Err(e) => {
             eprintln!("[oxipulse] service error: {e}");
@@ -341,13 +211,7 @@ fn main() {
 // ── Linux / macOS ─────────────────────────────────────────────────────────────
 
 #[cfg(not(windows))]
-#[tokio::main]
-async fn main() {
+fn main() {
     check_version_arg();
-    let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel();
-    tokio::spawn(async move {
-        tokio::signal::ctrl_c().await.ok();
-        let _ = shutdown_tx.send(());
-    });
-    run(shutdown_rx).await;
+    sb_agent_core::service::run_console(run);
 }

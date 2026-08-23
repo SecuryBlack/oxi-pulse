@@ -1,7 +1,7 @@
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use sysinfo::{Disks, Networks, System};
 use tokio::net::TcpStream;
-use crate::buffer::parse_host_port;
+use sb_agent_core::net::parse_host_port;
 
 #[derive(Debug, Clone)]
 pub struct LatencyMetric {

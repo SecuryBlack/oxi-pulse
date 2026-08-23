@@ -7,6 +7,7 @@ description = "Ultralight open source server monitoring agent"
 repository = "https://github.com/securyblack/oxi-pulse"
 
 [dependencies]
+sb-agent-core = { git = "https://github.com/securyblack/sb-agent-core", branch = "master" }
 tokio = { version = "1", features = ["full"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
@@ -14,13 +15,9 @@ tracing-appender = "0.2"
 sysinfo = "0.33"
 serde = { version = "1", features = ["derive"] }
 toml = "0.8"
-opentelemetry = { version = "0.27", features = ["metrics"] }
+opentelemetry = { version = "0.32", features = ["metrics"] }
 opentelemetry_sdk = { version = "0.32", features = ["metrics", "rt-tokio"] }
-opentelemetry-otlp = { version = "0.27", features = ["metrics", "grpc-tonic", "tls-roots"] }
-tonic = { version = "0.12", features = ["tls", "tls-roots"] }
-self_update = { version = "0.42", default-features = false, features = ["archive-tar", "archive-zip", "compression-flate2", "compression-zip-deflate"] }
+opentelemetry-otlp = { version = "0.32", features = ["metrics", "grpc-tonic", "tls-ring", "tls-roots"] }
+tonic = { version = "0.14", features = ["tls-ring", "tls-native-roots"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 serde_json = "1"
-
-[target.'cfg(windows)'.dependencies]
-windows-service = "0.7"

@@ -1,27 +1,31 @@
 use serde::Deserialize;
-use std::{env, fs, path::Path};
+use std::env;
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
     /// Agent version
+    #[serde(default)]
     pub version: Option<String>,
     /// OTLP collector endpoint (e.g. "https://ingest.example.com:4317")
+    #[serde(default)]
     pub endpoint: String,
     /// Authentication token sent as a header to the OTLP collector
+    #[serde(default)]
     pub token: String,
     /// Deployment mode: "direct" (default) or "local_agent" (sends to localhost:4317)
     #[serde(default)]
     pub mode: Option<String>,
-    /// How often to collect and send metrics, in seconds (default: 10)
+    /// How often to collect and send metrics, in seconds (default: 30)
     #[serde(default = "default_interval")]
     pub interval_secs: u64,
-    /// Maximum number of metric snapshots to buffer when offline (default: 8640 = 24h at 10s)
+    /// Maximum number of metric snapshots to buffer when offline (default: 8640 = 72h at 30s)
     #[serde(default = "default_buffer_max")]
     pub buffer_max_size: usize,
     /// Opt-in usage telemetry sent to SecuryBlack.
     /// - absent / not set → defers to server-side config (fetched on startup)
     /// - true             → always enabled, ignores server-side config
     /// - false            → always disabled, ignores server-side config
+    #[serde(default)]
     pub telemetry_enabled: Option<bool>,
     /// SecuryBlack API base URL used for remote config and telemetry pings.
     /// Defaults to "https://api.securyblack.com".
@@ -32,8 +36,24 @@ pub struct Config {
     pub latency_targets: Vec<String>,
 }
 
+impl Default for Config {
+    fn default() -> Self {
+        Config {
+            version: None,
+            endpoint: String::new(),
+            token: String::new(),
+            mode: None,
+            interval_secs: default_interval(),
+            buffer_max_size: default_buffer_max(),
+            telemetry_enabled: None,
+            api_url: default_api_url(),
+            latency_targets: Vec::new(),
+        }
+    }
+}
+
 fn default_interval() -> u64 {
-    10
+    30
 }
 
 fn default_buffer_max() -> usize {
@@ -68,143 +88,70 @@ impl std::fmt::Display for ConfigError {
 }
 
 impl Config {
-    /// Load config from `config.toml` (if present), then override with env vars.
-    /// Fails with a clear error if required fields are missing.
+    /// Carga `config.toml` (vía `sb_agent_core::config::load`), aplica
+    /// overrides de entorno y valida los campos obligatorios. La carga en sí
+    /// y la sincronización del campo `version` vienen del crate compartido;
+    /// lo que sigue siendo propio de OxiPulse son estos campos, sus
+    /// `OXIPULSE_*` env vars, y las reglas de `local_agent` / validación.
     pub fn load() -> Result<Self, ConfigError> {
-        let mut version: Option<String> = None;
-        let mut endpoint: Option<String> = None;
-        let mut token: Option<String> = None;
-        let mut interval_secs: u64 = default_interval();
-        let mut buffer_max_size: usize = default_buffer_max();
-        let mut telemetry_enabled: Option<bool> = None;
-        let mut api_url: String = default_api_url();
-        let mut mode: Option<String> = None;
-        let mut latency_targets: Vec<String> = Vec::new();
+        let config_path = sb_agent_core::config::default_config_path("oxipulse");
+        let mut cfg: Config = sb_agent_core::config::load(&config_path)
+            .map_err(|e| ConfigError::ParseError(e.to_string()))?;
 
-        let config_path = Self::config_file_path();
-        if Path::new(&config_path).exists() {
-            let contents = fs::read_to_string(&config_path)
-                .map_err(|e| ConfigError::ParseError(e.to_string()))?;
-            let file: toml::Value = toml::from_str(&contents)
-                .map_err(|e| ConfigError::ParseError(e.to_string()))?;
-
-            if let Some(v) = file.get("version").and_then(|v| v.as_str()) {
-                version = Some(v.to_string());
-            }
-            if let Some(v) = file.get("endpoint").and_then(|v| v.as_str()) {
-                endpoint = Some(v.to_string());
-            }
-            if let Some(v) = file.get("token").and_then(|v| v.as_str()) {
-                token = Some(v.to_string());
-            }
-            if let Some(v) = file.get("interval_secs").and_then(|v| v.as_integer()) {
-                interval_secs = v as u64;
-            }
-            if let Some(v) = file.get("buffer_max_size").and_then(|v| v.as_integer()) {
-                buffer_max_size = v as usize;
-            }
-            if let Some(v) = file.get("telemetry_enabled").and_then(|v| v.as_bool()) {
-                telemetry_enabled = Some(v);
-            }
-            if let Some(v) = file.get("api_url").and_then(|v| v.as_str()) {
-                api_url = v.to_string();
-            }
-            if let Some(v) = file.get("mode").and_then(|v| v.as_str()) {
-                mode = Some(v.to_string());
-            }
-            if let Some(arr) = file.get("latency_targets").and_then(|v| v.as_array()) {
-                latency_targets = arr
-                    .iter()
-                    .filter_map(|v| v.as_str().map(|s| s.to_string()))
-                    .collect();
-            }
-        }
-
-        // Env vars override config file
         if let Ok(v) = env::var("OXIPULSE_ENDPOINT") {
-            endpoint = Some(v);
+            cfg.endpoint = v;
         }
         if let Ok(v) = env::var("OXIPULSE_TOKEN") {
-            token = Some(v);
+            cfg.token = v;
         }
         if let Ok(v) = env::var("OXIPULSE_INTERVAL_SECS") {
             if let Ok(n) = v.parse::<u64>() {
-                interval_secs = n;
+                cfg.interval_secs = n;
             }
         }
         if let Ok(v) = env::var("OXIPULSE_BUFFER_MAX") {
             if let Ok(n) = v.parse::<usize>() {
-                buffer_max_size = n;
+                cfg.buffer_max_size = n;
             }
         }
         if let Ok(v) = env::var("OXIPULSE_TELEMETRY") {
             match v.to_lowercase().as_str() {
-                "true" | "1" | "yes" => telemetry_enabled = Some(true),
-                "false" | "0" | "no" => telemetry_enabled = Some(false),
+                "true" | "1" | "yes" => cfg.telemetry_enabled = Some(true),
+                "false" | "0" | "no" => cfg.telemetry_enabled = Some(false),
                 _ => {}
             }
         }
         if let Ok(v) = env::var("OXIPULSE_API_URL") {
-            api_url = v;
+            cfg.api_url = v;
         }
         if let Ok(v) = env::var("OXIPULSE_MODE") {
-            mode = Some(v);
+            cfg.mode = Some(v);
         }
         if let Ok(v) = env::var("OXIPULSE_LATENCY_TARGETS") {
-            latency_targets = v
+            cfg.latency_targets = v
                 .split(',')
                 .map(|s| s.trim().to_string())
                 .filter(|s| !s.is_empty())
                 .collect();
         }
 
-        let current_pkg_version = env!("CARGO_PKG_VERSION");
-        if version.as_deref() != Some(current_pkg_version) && Path::new(&config_path).exists() {
-            version = Some(current_pkg_version.to_string());
-            if let Ok(contents) = fs::read_to_string(&config_path) {
-                let updated = if contents.contains("version = ") {
-                    contents.lines().map(|line| {
-                        if line.trim_start().starts_with("version = ") {
-                            format!("version = \"{}\"", current_pkg_version)
-                        } else {
-                            line.to_string()
-                        }
-                    }).collect::<Vec<_>>().join("\n")
-                } else {
-                    format!("version = \"{}\"\n{}", current_pkg_version, contents)
-                };
-                let _ = fs::write(&config_path, updated);
-            }
-        } else if version.is_none() {
-            version = Some(current_pkg_version.to_string());
+        // When in local_agent mode, default endpoint to localhost:4317
+        if cfg.mode.as_deref() == Some("local_agent") && cfg.endpoint.is_empty() {
+            cfg.endpoint = "http://localhost:4317".to_string();
         }
 
-        // When in local_agent mode, default endpoint to localhost:4317
-        let endpoint = if mode.as_deref() == Some("local_agent") {
-            endpoint.or(Some("http://localhost:4317".to_string()))
-        } else {
-            endpoint
-        };
+        if cfg.endpoint.is_empty() {
+            return Err(ConfigError::MissingEndpoint);
+        }
+        if cfg.token.is_empty() {
+            return Err(ConfigError::MissingToken);
+        }
 
-        Ok(Config {
-            version,
-            endpoint: endpoint.ok_or(ConfigError::MissingEndpoint)?,
-            token: token.ok_or(ConfigError::MissingToken)?,
-            interval_secs,
-            buffer_max_size,
-            telemetry_enabled,
-            api_url,
-            mode,
-            latency_targets,
-        })
-    }
+        let current_pkg_version = env!("CARGO_PKG_VERSION");
+        cfg.version = Some(current_pkg_version.to_string());
+        let _ = sb_agent_core::config::sync_version_field(&config_path, current_pkg_version);
 
-    fn config_file_path() -> String {
-        #[cfg(target_os = "windows")]
-        return r"C:\ProgramData\oxipulse\config.toml".to_string();
-
-        #[cfg(not(target_os = "windows"))]
-        return "/etc/oxipulse/config.toml".to_string();
+        Ok(cfg)
     }
 }
 
@@ -221,15 +168,13 @@ mod tests {
 
     #[test]
     fn test_local_agent_mode_default_endpoint() {
-        // Test local_agent mode default endpoint logic when no explicit endpoint is provided
         let mode = Some("local_agent".to_string());
-        let endpoint: Option<String> = None;
-        let effective_endpoint = if mode.as_deref() == Some("local_agent") {
-            endpoint.or(Some("http://localhost:4317".to_string()))
+        let endpoint = String::new();
+        let effective_endpoint = if mode.as_deref() == Some("local_agent") && endpoint.is_empty() {
+            "http://localhost:4317".to_string()
         } else {
             endpoint
         };
-        assert_eq!(effective_endpoint, Some("http://localhost:4317".to_string()));
+        assert_eq!(effective_endpoint, "http://localhost:4317".to_string());
     }
 }
-
