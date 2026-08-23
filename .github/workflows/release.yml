@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   release:
-    uses: securyblack/sb-agent-core/.github/workflows/release.yml@main
+    uses: securyblack/sb-agent-core/.github/workflows/release.yml@master
     with:
       binary-name: oxipulse
       windows-static-crt: true
