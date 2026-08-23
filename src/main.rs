@@ -1,6 +1,6 @@
 use std::sync::{
-    atomic::{AtomicBool, AtomicU64, Ordering},
     Arc,
+    atomic::{AtomicBool, AtomicU64, Ordering},
 };
 use std::time::Duration;
 use tokio::time;
@@ -31,19 +31,21 @@ async fn run(mut shutdown: tokio::sync::oneshot::Receiver<()>) {
 
     info!(endpoint = %cfg.endpoint, interval_secs = cfg.interval_secs, "config loaded");
 
-    let status_handle = sb_agent_core::status::StatusHandle::new("oxipulse", env!("CARGO_PKG_VERSION"));
+    let status_handle =
+        sb_agent_core::status::StatusHandle::new("oxipulse", env!("CARGO_PKG_VERSION"));
     sb_agent_core::status::spawn_server(
         status_handle.clone(),
         sb_agent_core::status::default_socket_path("oxipulse"),
     );
 
-    let (instruments, _provider) = match telemetry::init(&cfg.endpoint, &cfg.token, cfg.interval_secs) {
-        Ok(v) => v,
-        Err(e) => {
-            tracing::error!("failed to initialise OTLP exporter: {}", e);
-            std::process::exit(1);
-        }
-    };
+    let (instruments, _provider) =
+        match telemetry::init(&cfg.endpoint, &cfg.token, cfg.interval_secs) {
+            Ok(v) => v,
+            Err(e) => {
+                tracing::error!("failed to initialise OTLP exporter: {}", e);
+                std::process::exit(1);
+            }
+        };
 
     info!("OTLP exporter initialised");
     status_handle.set_state("running");
@@ -66,7 +68,10 @@ async fn run(mut shutdown: tokio::sync::oneshot::Receiver<()>) {
             info!(api_url = %cfg.api_url, "fetching remote config");
             match phone_home::fetch_remote_config(&cfg.api_url, &cfg.token).await {
                 Some(rc) => {
-                    info!(telemetry_enabled = rc.telemetry_enabled, "remote config received");
+                    info!(
+                        telemetry_enabled = rc.telemetry_enabled,
+                        "remote config received"
+                    );
                     rc.telemetry_enabled
                 }
                 None => {
@@ -181,7 +186,6 @@ async fn run(mut shutdown: tokio::sync::oneshot::Receiver<()>) {
         }
     }
 }
-
 
 fn check_cli_args() {
     sb_agent_core::cli::dispatch_common_args("oxipulse", "oxipulse", env!("CARGO_PKG_VERSION"));

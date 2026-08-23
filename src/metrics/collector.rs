@@ -1,7 +1,7 @@
+use sb_agent_core::net::parse_host_port;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use sysinfo::{Disks, Networks, System};
 use tokio::net::TcpStream;
-use sb_agent_core::net::parse_host_port;
 
 #[derive(Debug, Clone)]
 pub struct LatencyMetric {
@@ -37,8 +37,6 @@ pub struct Metrics {
     /// Network latency metrics to various targets in milliseconds.
     pub latencies: Vec<LatencyMetric>,
 }
-
-
 
 pub struct Collector {
     sys: System,
@@ -82,7 +80,6 @@ impl Collector {
         let ram_used_bytes = self.sys.used_memory();
         let swap_total_bytes = self.sys.total_swap();
         let swap_used_bytes = self.sys.used_swap();
-
 
         // Disk — collect per-disk info
         let disks = Disks::new_with_refreshed_list();
@@ -187,9 +184,7 @@ impl Collector {
             latencies,
         }
     }
-
 }
-
 
 /// Helper function to perform a single TCP ping.
 async fn ping_target(target: &str) -> Option<f64> {
@@ -204,11 +199,7 @@ async fn ping_target(target: &str) -> Option<f64> {
 
     for sa in addrs {
         let start = Instant::now();
-        match tokio::time::timeout(
-            std::time::Duration::from_secs(2),
-            TcpStream::connect(sa),
-        )
-        .await
+        match tokio::time::timeout(std::time::Duration::from_secs(2), TcpStream::connect(sa)).await
         {
             Ok(Ok(_)) => {
                 return Some(start.elapsed().as_secs_f64() * 1000.0);
@@ -233,4 +224,3 @@ mod tests {
         assert!(!metrics.latencies.is_empty());
     }
 }
-

@@ -163,7 +163,10 @@ mod tests {
     fn test_config_error_display() {
         assert!(format!("{}", ConfigError::MissingEndpoint).contains("missing OTLP endpoint"));
         assert!(format!("{}", ConfigError::MissingToken).contains("missing auth token"));
-        assert!(format!("{}", ConfigError::ParseError("invalid toml".to_string())).contains("invalid toml"));
+        assert!(
+            format!("{}", ConfigError::ParseError("invalid toml".to_string()))
+                .contains("invalid toml")
+        );
     }
 
     #[test]

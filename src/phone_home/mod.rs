@@ -1,5 +1,5 @@
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
@@ -32,12 +32,7 @@ pub async fn fetch_remote_config(api_url: &str, token: &str) -> Option<RemoteCon
         .ok()?;
 
     let url = format!("{}/agents/me/config", api_url);
-    let resp = client
-        .get(&url)
-        .bearer_auth(token)
-        .send()
-        .await
-        .ok()?;
+    let resp = client.get(&url).bearer_auth(token).send().await.ok()?;
 
     if !resp.status().is_success() {
         warn!(status = %resp.status(), "remote config fetch returned non-2xx");
@@ -118,4 +113,3 @@ async fn send_ping(client: &reqwest::Client, api_url: &str, token: &str, ping: &
         }
     }
 }
-

@@ -1,12 +1,11 @@
 use opentelemetry::{
-    global,
+    KeyValue, global,
     metrics::{Gauge, MeterProvider as _},
-    KeyValue,
 };
 use opentelemetry_otlp::{MetricExporter, WithExportConfig, WithTonicConfig};
 use opentelemetry_sdk::{
-    metrics::{PeriodicReader, SdkMeterProvider},
     Resource,
+    metrics::{PeriodicReader, SdkMeterProvider},
 };
 use std::time::Duration;
 use tonic::metadata::{MetadataMap, MetadataValue};
@@ -159,16 +158,14 @@ pub fn init(
 pub fn record(instruments: &Instruments, m: &Metrics) {
     for disk in &m.disks {
         let attrs: &[KeyValue] = &[KeyValue::new("disk.name", disk.name.clone())];
-        instruments
-            .disk_used
-            .record(disk.used_bytes, attrs);
-        instruments
-            .disk_total
-            .record(disk.total_bytes, attrs);
+        instruments.disk_used.record(disk.used_bytes, attrs);
+        instruments.disk_total.record(disk.total_bytes, attrs);
     }
     instruments.uptime.record(m.uptime_secs, &[]);
     instruments.cpu_count.record(m.cpu_count as u64, &[]);
-    instruments.cpu_usage.record(m.cpu_usage_percent as f64, &[]);
+    instruments
+        .cpu_usage
+        .record(m.cpu_usage_percent as f64, &[]);
     instruments.load_avg_1m.record(m.load_avg_1m, &[]);
     instruments.load_avg_5m.record(m.load_avg_5m, &[]);
     instruments.load_avg_15m.record(m.load_avg_15m, &[]);
@@ -182,11 +179,16 @@ pub fn record(instruments: &Instruments, m: &Metrics) {
     for lat in &m.latencies {
         let attrs: &[KeyValue] = &[
             KeyValue::new("target", lat.target.clone()),
-            KeyValue::new("status", if lat.latency_ms.is_some() { "success" } else { "failure" }),
+            KeyValue::new(
+                "status",
+                if lat.latency_ms.is_some() {
+                    "success"
+                } else {
+                    "failure"
+                },
+            ),
         ];
         let val = lat.latency_ms.unwrap_or(-1.0);
         instruments.net_latency.record(val, attrs);
     }
 }
-
-
