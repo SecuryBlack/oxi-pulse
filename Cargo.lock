@@ -1910,7 +1910,7 @@ checksum = "9774ba4a74de5f7b1c1451ed6cd5285a32eddb5cccb8cc655a4e50009e06477f"
 [[package]]
 name = "sb-agent-core"
 version = "0.1.0"
-source = "git+https://github.com/securyblack/sb-agent-core?branch=master#da295a28739f57ec949715fe1fca21896d4ed27f"
+source = "git+https://github.com/securyblack/sb-agent-core?branch=master#ad4499e45bc005e7262b4a12947780f7bb09125b"
 dependencies = [
  "crossterm",
  "ratatui",
@@ -2293,7 +2293,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.3.4",
+ "getrandom 0.4.2",
  "once_cell",
  "rustix 1.1.4",
  "windows-sys 0.61.2",

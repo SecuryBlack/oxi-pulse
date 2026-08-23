@@ -183,39 +183,8 @@ async fn run(mut shutdown: tokio::sync::oneshot::Receiver<()>) {
 }
 
 
-/// Maneja `--version`/`-V`, `status` y `top` antes de arrancar como
-/// servicio/consola. Sale del proceso si alguno aplica.
 fn check_cli_args() {
-    let args: Vec<String> = std::env::args().collect();
-    if args.len() <= 1 {
-        return;
-    }
-    match args[1].as_str() {
-        "--version" | "-V" => {
-            println!("oxipulse {}", env!("CARGO_PKG_VERSION"));
-            std::process::exit(0);
-        }
-        "status" => {
-            match sb_agent_core::status_client::read_once("oxipulse") {
-                Ok(payload) => {
-                    println!("{}", serde_json::to_string_pretty(&payload).unwrap_or_default());
-                    std::process::exit(0);
-                }
-                Err(e) => {
-                    eprintln!("[oxipulse] {e}");
-                    std::process::exit(1);
-                }
-            }
-        }
-        "top" => {
-            if let Err(e) = sb_agent_core::tui::run_top("oxipulse") {
-                eprintln!("[oxipulse] {e}");
-                std::process::exit(1);
-            }
-            std::process::exit(0);
-        }
-        _ => {}
-    }
+    sb_agent_core::cli::dispatch_common_args("oxipulse", "oxipulse", env!("CARGO_PKG_VERSION"));
 }
 
 #[cfg(windows)]
