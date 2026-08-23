@@ -1,13 +1,13 @@
 [package]
 name = "oxipulse"
-version = "0.3.9"
+version = "0.3.10"
 edition = "2024"
 license = "Apache-2.0"
 description = "Ultralight open source server monitoring agent"
 repository = "https://github.com/securyblack/oxi-pulse"
 
 [dependencies]
-sb-agent-core = { git = "https://github.com/securyblack/sb-agent-core", branch = "master" }
+sb-agent-core = "0.1"
 tokio = { version = "1", features = ["full"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
