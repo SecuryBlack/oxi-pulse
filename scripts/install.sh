@@ -5,7 +5,7 @@
 set -euo pipefail
 
 SB_AGENT_LABEL="oxipulse"
-LIB_URL="https://raw.githubusercontent.com/securyblack/sb-agent-core/main/scripts/install-lib.sh"
+LIB_URL="https://raw.githubusercontent.com/securyblack/sb-agent-core/master/scripts/install-lib.sh"
 LIB_TMP="$(mktemp)"
 curl -fsSL "$LIB_URL" -o "$LIB_TMP" || { echo "ERROR: could not fetch install-lib.sh from sb-agent-core" >&2; exit 1; }
 # shellcheck source=/dev/null

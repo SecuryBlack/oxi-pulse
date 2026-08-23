@@ -16,7 +16,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 $SbAgentLabel = "oxipulse"
-$libUrl = "https://raw.githubusercontent.com/securyblack/sb-agent-core/main/scripts/install-lib.ps1"
+$libUrl = "https://raw.githubusercontent.com/securyblack/sb-agent-core/master/scripts/install-lib.ps1"
 $libTmp = Join-Path ([System.IO.Path]::GetTempPath()) "sb-agent-core-install-lib.ps1"
 Invoke-WebRequest -Uri $libUrl -OutFile $libTmp -UseBasicParsing
 . $libTmp
