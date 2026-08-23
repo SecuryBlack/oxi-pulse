@@ -196,7 +196,7 @@ fn main() {
     check_cli_args();
     // ERROR_FAILED_SERVICE_CONTROLLER_CONNECT (1063): process was not started
     // by the SCM, so run in console mode instead.
-    match sb_agent_core::service::windows::run_service("OxiPulse", |rx| run(rx)) {
+    match sb_agent_core::service::windows::run_service("OxiPulse", run) {
         Ok(_) => {}
         Err(e) if sb_agent_core::service::windows::is_not_started_by_scm(&e) => {
             sb_agent_core::service::run_console(run);

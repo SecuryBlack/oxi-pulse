@@ -104,15 +104,15 @@ impl Config {
         if let Ok(v) = env::var("OXIPULSE_TOKEN") {
             cfg.token = v;
         }
-        if let Ok(v) = env::var("OXIPULSE_INTERVAL_SECS") {
-            if let Ok(n) = v.parse::<u64>() {
-                cfg.interval_secs = n;
-            }
+        if let Ok(v) = env::var("OXIPULSE_INTERVAL_SECS")
+            && let Ok(n) = v.parse::<u64>()
+        {
+            cfg.interval_secs = n;
         }
-        if let Ok(v) = env::var("OXIPULSE_BUFFER_MAX") {
-            if let Ok(n) = v.parse::<usize>() {
-                cfg.buffer_max_size = n;
-            }
+        if let Ok(v) = env::var("OXIPULSE_BUFFER_MAX")
+            && let Ok(n) = v.parse::<usize>()
+        {
+            cfg.buffer_max_size = n;
         }
         if let Ok(v) = env::var("OXIPULSE_TELEMETRY") {
             match v.to_lowercase().as_str() {

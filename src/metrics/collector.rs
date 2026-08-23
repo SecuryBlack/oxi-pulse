@@ -18,6 +18,7 @@ pub struct DiskInfo {
 
 #[derive(Debug)]
 pub struct Metrics {
+    #[allow(dead_code)]
     pub timestamp_unix_ms: u64,
     pub uptime_secs: u64,
     pub cpu_count: usize,
@@ -112,8 +113,8 @@ impl Collector {
 
         // Network — aggregate all interfaces and compute throughput
         self.networks.refresh(true);
-        let raw_bytes_in: u64 = self.networks.iter().map(|(_, n)| n.received()).sum();
-        let raw_bytes_out: u64 = self.networks.iter().map(|(_, n)| n.transmitted()).sum();
+        let raw_bytes_in: u64 = self.networks.values().map(|n| n.received()).sum();
+        let raw_bytes_out: u64 = self.networks.values().map(|n| n.transmitted()).sum();
 
         let now = Instant::now();
         let (net_bps_in, net_bps_out) = match self.last_collect {
@@ -199,12 +200,10 @@ async fn ping_target(target: &str) -> Option<f64> {
 
     for sa in addrs {
         let start = Instant::now();
-        match tokio::time::timeout(std::time::Duration::from_secs(2), TcpStream::connect(sa)).await
+        if let Ok(Ok(_)) =
+            tokio::time::timeout(std::time::Duration::from_secs(2), TcpStream::connect(sa)).await
         {
-            Ok(Ok(_)) => {
-                return Some(start.elapsed().as_secs_f64() * 1000.0);
-            }
-            _ => {}
+            return Some(start.elapsed().as_secs_f64() * 1000.0);
         }
     }
     None
