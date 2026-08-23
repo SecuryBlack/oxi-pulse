@@ -183,17 +183,44 @@ async fn run(mut shutdown: tokio::sync::oneshot::Receiver<()>) {
 }
 
 
-fn check_version_arg() {
+/// Maneja `--version`/`-V`, `status` y `top` antes de arrancar como
+/// servicio/consola. Sale del proceso si alguno aplica.
+fn check_cli_args() {
     let args: Vec<String> = std::env::args().collect();
-    if args.len() > 1 && (args[1] == "--version" || args[1] == "-V") {
-        println!("oxipulse {}", env!("CARGO_PKG_VERSION"));
-        std::process::exit(0);
+    if args.len() <= 1 {
+        return;
+    }
+    match args[1].as_str() {
+        "--version" | "-V" => {
+            println!("oxipulse {}", env!("CARGO_PKG_VERSION"));
+            std::process::exit(0);
+        }
+        "status" => {
+            match sb_agent_core::status_client::read_once("oxipulse") {
+                Ok(payload) => {
+                    println!("{}", serde_json::to_string_pretty(&payload).unwrap_or_default());
+                    std::process::exit(0);
+                }
+                Err(e) => {
+                    eprintln!("[oxipulse] {e}");
+                    std::process::exit(1);
+                }
+            }
+        }
+        "top" => {
+            if let Err(e) = sb_agent_core::tui::run_top("oxipulse") {
+                eprintln!("[oxipulse] {e}");
+                std::process::exit(1);
+            }
+            std::process::exit(0);
+        }
+        _ => {}
     }
 }
 
 #[cfg(windows)]
 fn main() {
-    check_version_arg();
+    check_cli_args();
     // ERROR_FAILED_SERVICE_CONTROLLER_CONNECT (1063): process was not started
     // by the SCM, so run in console mode instead.
     match sb_agent_core::service::windows::run_service("OxiPulse", |rx| run(rx)) {
@@ -212,6 +239,6 @@ fn main() {
 
 #[cfg(not(windows))]
 fn main() {
-    check_version_arg();
+    check_cli_args();
     sb_agent_core::service::run_console(run);
 }
