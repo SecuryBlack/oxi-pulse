@@ -7,6 +7,7 @@ use tokio::time;
 use tracing::info;
 
 mod config;
+mod management;
 mod metrics;
 mod phone_home;
 mod telemetry;
@@ -56,6 +57,13 @@ async fn run(mut shutdown: tokio::sync::oneshot::Receiver<()>) {
         "oxipulse",
         env!("CARGO_PKG_VERSION"),
     ));
+
+    let command_registry = sb_agent_core::command_intake::CommandRegistry::new();
+    management::register(&command_registry);
+    sb_agent_core::command_intake::spawn_server(
+        command_registry,
+        sb_agent_core::command_intake::default_socket_path("oxipulse"),
+    );
 
     // ── Telemetry opt-in ─────────────────────────────────────────────────────
     // Resolve effective telemetry flag:

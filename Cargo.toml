@@ -1,6 +1,6 @@
 [package]
 name = "oxipulse"
-version = "0.3.10"
+version = "0.3.11"
 edition = "2024"
 license = "Apache-2.0"
 description = "Ultralight open source server monitoring agent"
@@ -21,3 +21,10 @@ opentelemetry-otlp = { version = "0.32", features = ["metrics", "grpc-tonic", "t
 tonic = { version = "0.14", features = ["tls-ring", "tls-native-roots"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 serde_json = "1"
+
+# TEMPORAL: mismo motivo que en ferro-sentry/nexus-agent — el intake de
+# comandos (`command_intake`) y `updater::check_now` solo están en GitHub
+# todavía, sin publicar a crates.io. Quitar en cuanto se publique una
+# versión del crate que los incluya.
+[patch.crates-io]
+sb-agent-core = { git = "https://github.com/SecuryBlack/sb-agent-core.git", rev = "a1036c0" }
