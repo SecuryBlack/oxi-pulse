@@ -6,11 +6,18 @@
 use sb_agent_core::command_intake::{CommandOutcome, CommandRegistry};
 
 pub fn register(registry: &CommandRegistry) {
-    registry.register("update_now", move |_payload, _progress| async move { handle_update_now().await });
+    registry.register("update_now", move |_payload, _progress| async move {
+        handle_update_now().await
+    });
 }
 
 async fn handle_update_now() -> CommandOutcome {
-    let cfg = sb_agent_core::updater::UpdaterConfig::new("securyblack", "oxi-pulse", "oxipulse", env!("CARGO_PKG_VERSION"));
+    let cfg = sb_agent_core::updater::UpdaterConfig::new(
+        "securyblack",
+        "oxi-pulse",
+        "oxipulse",
+        env!("CARGO_PKG_VERSION"),
+    );
 
     let result = tokio::task::spawn_blocking(move || sb_agent_core::updater::check_now(&cfg)).await;
 
@@ -26,9 +33,10 @@ async fn handle_update_now() -> CommandOutcome {
             });
             CommandOutcome::ok(serde_json::json!({ "updated": true, "previous_version": env!("CARGO_PKG_VERSION") }).to_string())
         }
-        Ok(Ok(false)) => {
-            CommandOutcome::ok(serde_json::json!({ "updated": false, "current_version": env!("CARGO_PKG_VERSION") }).to_string())
-        }
+        Ok(Ok(false)) => CommandOutcome::ok(
+            serde_json::json!({ "updated": false, "current_version": env!("CARGO_PKG_VERSION") })
+                .to_string(),
+        ),
         Ok(Err(e)) => CommandOutcome::failed(format!("update check failed: {e}")),
         Err(e) => CommandOutcome::failed(format!("update task panicked: {e}")),
     }
