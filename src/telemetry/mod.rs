@@ -38,11 +38,12 @@ pub fn init(
     token: &str,
     interval_secs: u64,
 ) -> Result<(Instruments, SdkMeterProvider), Box<dyn std::error::Error>> {
-    let normalized_endpoint = if !endpoint.starts_with("http://") && !endpoint.starts_with("https://") {
-        format!("https://{}", endpoint)
-    } else {
-        endpoint.to_string()
-    };
+    let normalized_endpoint =
+        if !endpoint.starts_with("http://") && !endpoint.starts_with("https://") {
+            format!("https://{}", endpoint)
+        } else {
+            endpoint.to_string()
+        };
 
     // Build metadata map with the auth token
     let mut metadata = MetadataMap::new();
