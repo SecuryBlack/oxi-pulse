@@ -38,18 +38,28 @@ pub fn init(
     token: &str,
     interval_secs: u64,
 ) -> Result<(Instruments, SdkMeterProvider), Box<dyn std::error::Error>> {
+    let normalized_endpoint = if !endpoint.starts_with("http://") && !endpoint.starts_with("https://") {
+        format!("https://{}", endpoint)
+    } else {
+        endpoint.to_string()
+    };
+
     // Build metadata map with the auth token
     let mut metadata = MetadataMap::new();
     let auth_value = MetadataValue::try_from(format!("Bearer {}", token))?;
     metadata.insert("authorization", auth_value);
 
     // Build the OTLP exporter
-    let exporter = MetricExporter::builder()
+    let mut builder = MetricExporter::builder()
         .with_tonic()
-        .with_endpoint(endpoint)
-        .with_metadata(metadata)
-        .with_tls_config(ClientTlsConfig::new().with_native_roots())
-        .build()?;
+        .with_endpoint(&normalized_endpoint)
+        .with_metadata(metadata);
+
+    if normalized_endpoint.starts_with("https://") {
+        builder = builder.with_tls_config(ClientTlsConfig::new().with_native_roots());
+    }
+
+    let exporter = builder.build()?;
 
     // Periodic reader flushes on the same interval as our collection loop
     let reader = PeriodicReader::builder(exporter)

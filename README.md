@@ -132,8 +132,8 @@ endpoint = "https://ingest.example.com:4317"   # Any OTLP/gRPC endpoint
 token    = "your-auth-token"                    # Sent as Authorization: Bearer header
 
 # Optional
-interval_secs   = 10    # Collection and export interval (default: 10s)
-buffer_max_size = 8640  # Max buffered snapshots when offline (default: 8640 = 24h at 10s)
+interval_secs   = 30    # Collection and export interval (default: 30s)
+buffer_max_size = 8640  # Max buffered snapshots when offline (default: 8640 = 72h at 30s)
 ```
 
 ### Environment variable overrides
