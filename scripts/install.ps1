@@ -12,6 +12,10 @@ param(
     [string]$Mode     = ""
 )
 
+# Compatibilidad Windows Server 2019 / PS 5.1: Forzar TLS 1.2+ y permitir sub-scripts
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 -bor [Net.SecurityProtocolType]::Tls11 -bor [Net.SecurityProtocolType]::Tls
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force -ErrorAction SilentlyContinue
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
