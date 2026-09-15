@@ -1300,7 +1300,7 @@ dependencies = [
 
 [[package]]
 name = "oxipulse"
-version = "0.3.11"
+version = "0.3.12"
 dependencies = [
  "opentelemetry",
  "opentelemetry-otlp",

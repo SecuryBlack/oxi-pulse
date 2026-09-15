@@ -31,12 +31,21 @@ pub struct Instruments {
     net_latency: Gauge<f64>,
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct HostInfo {
+    pub cpu_model: Option<String>,
+    pub os_name: Option<String>,
+    pub os_version: Option<String>,
+    pub kernel_version: Option<String>,
+}
+
 /// Initialise the OTLP metrics pipeline and return the instruments to record into.
 /// The returned `SdkMeterProvider` must be kept alive for the duration of the process.
 pub fn init(
     endpoint: &str,
     token: &str,
     interval_secs: u64,
+    host_info: HostInfo,
 ) -> Result<(Instruments, SdkMeterProvider), Box<dyn std::error::Error>> {
     let normalized_endpoint =
         if !endpoint.starts_with("http://") && !endpoint.starts_with("https://") {
@@ -68,11 +77,25 @@ pub fn init(
         .build();
 
     // Build and register the global MeterProvider
+    let mut attrs = vec![
+        KeyValue::new("service.name", "oxipulse"),
+        KeyValue::new("service.version", env!("CARGO_PKG_VERSION")),
+    ];
+    if let Some(cpu) = host_info.cpu_model {
+        attrs.push(KeyValue::new("host.cpu.model", cpu));
+    }
+    if let Some(os) = host_info.os_name {
+        attrs.push(KeyValue::new("host.os.name", os));
+    }
+    if let Some(ver) = host_info.os_version {
+        attrs.push(KeyValue::new("host.os.version", ver));
+    }
+    if let Some(kver) = host_info.kernel_version {
+        attrs.push(KeyValue::new("host.kernel.version", kver));
+    }
+
     let resource = Resource::builder()
-        .with_attributes([
-            KeyValue::new("service.name", "oxipulse"),
-            KeyValue::new("service.version", env!("CARGO_PKG_VERSION")),
-        ])
+        .with_attributes(attrs)
         .build();
 
     let provider = SdkMeterProvider::builder()

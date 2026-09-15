@@ -39,8 +39,22 @@ async fn run(mut shutdown: tokio::sync::oneshot::Receiver<()>) {
         sb_agent_core::status::default_socket_path("oxipulse"),
     );
 
+    let mut sys = sysinfo::System::new();
+    sys.refresh_cpu_all();
+    let cpu_model = sys.cpus().first().map(|c| c.brand().trim().to_string());
+    let os_name = sysinfo::System::name();
+    let os_version = sysinfo::System::os_version();
+    let kernel_version = sysinfo::System::kernel_version();
+
+    let host_info = telemetry::HostInfo {
+        cpu_model,
+        os_name,
+        os_version,
+        kernel_version,
+    };
+
     let (instruments, _provider) =
-        match telemetry::init(&cfg.endpoint, &cfg.token, cfg.interval_secs) {
+        match telemetry::init(&cfg.endpoint, &cfg.token, cfg.interval_secs, host_info) {
             Ok(v) => v,
             Err(e) => {
                 tracing::error!("failed to initialise OTLP exporter: {}", e);
@@ -160,8 +174,10 @@ async fn run(mut shutdown: tokio::sync::oneshot::Receiver<()>) {
                     );
                     status_handle.set_details(serde_json::json!({
                         "cpu_usage_percent": m.cpu_usage_percent,
+                        "cpu_count": m.cpu_count,
                         "ram_used_bytes": m.ram_used_bytes,
                         "ram_total_bytes": m.ram_total_bytes,
+                        "uptime_secs": m.uptime_secs,
                         "buffered": offline_buffer.len(),
                         "offline": false,
                     }));
