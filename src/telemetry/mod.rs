@@ -94,9 +94,7 @@ pub fn init(
         attrs.push(KeyValue::new("host.kernel.version", kver));
     }
 
-    let resource = Resource::builder()
-        .with_attributes(attrs)
-        .build();
+    let resource = Resource::builder().with_attributes(attrs).build();
 
     let provider = SdkMeterProvider::builder()
         .with_reader(reader)
