@@ -1,7 +1,9 @@
-[![Release](https://github.com/securyblack/oxi-pulse/actions/workflows/release.yml/badge.svg)](https://github.com/securyblack/oxi-pulse/actions/workflows/release.yml)
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
-[![Rust](https://img.shields.io/badge/built%20with-Rust-orange.svg)](https://www.rust-lang.org/)
+[![CI](https://github.com/securyblack/oxi-pulse/actions/workflows/release.yml/badge.svg)](https://github.com/securyblack/oxi-pulse/actions)
+[![Arch](https://img.shields.io/badge/arch-x86__64%20%7C%20aarch64-informational?logo=linux&logoColor=white)](https://github.com/securyblack/oxi-pulse/releases)
+[![RAM](https://img.shields.io/badge/RAM-%3C%2015%20MB-brightgreen)](#principles)
 [![OpenTelemetry](https://img.shields.io/badge/protocol-OpenTelemetry%20OTLP-blueviolet)](https://opentelemetry.io/)
+[![Rust](https://img.shields.io/badge/built%20with-Rust-orange.svg)](https://www.rust-lang.org/)
 
 <br />
 
@@ -92,6 +94,27 @@ curl -fsSL https://install.oxipulse.io | sudo bash -s -- \
 # Windows
 irm https://install.oxipulse.io/windows | iex -Endpoint ingest.securyblack.com -Token <YOUR_TOKEN>
 ```
+
+### Autonomous Local Mode (Zero Vendor Lock-In)
+
+Want to test OxiPulse before connecting to any cloud SaaS? OxiPulse speaks standard **OpenTelemetry OTLP over gRPC** natively. You can run it completely isolated and point it to any generic OTLP collector, Jaeger, Grafana Tempo, or SigNoz:
+
+```bash
+# 1. (Optional) Run a local Jaeger instance with OTLP gRPC receiver enabled:
+docker run -d --name jaeger \
+  -e COLLECTOR_OTLP_ENABLED=true \
+  -p 4317:4317 \
+  -p 16686:16686 \
+  jaegertracing/all-in-one:latest
+
+# 2. Run OxiPulse from source pointing directly to your local collector:
+OXIPULSE_ENDPOINT=http://localhost:4317 cargo run
+
+# 3. Verify incoming server metrics in your collector UI:
+# Open http://localhost:16686
+```
+
+No SecuryBlack account, registration, or external cloud dependency required. You maintain 100% control over your telemetry.
 
 ---
 
