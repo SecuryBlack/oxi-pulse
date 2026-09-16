@@ -1,4 +1,5 @@
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+[![Security Policy](https://img.shields.io/badge/security-policy-green.svg)](.github/SECURITY.md)
 [![CI](https://github.com/securyblack/oxi-pulse/actions/workflows/release.yml/badge.svg)](https://github.com/securyblack/oxi-pulse/actions)
 [![Arch](https://img.shields.io/badge/arch-x86__64%20%7C%20aarch64-informational?logo=linux&logoColor=white)](https://github.com/securyblack/oxi-pulse/releases)
 [![RAM](https://img.shields.io/badge/RAM-%3C%2015%20MB-brightgreen)](#principles)
@@ -15,8 +16,8 @@
   <strong>
     <a href="https://github.com/securyblack/oxi-pulse#quickstart">Quickstart</a>&nbsp;&nbsp;&bull;&nbsp;&nbsp;
     <a href="https://github.com/securyblack/oxi-pulse#installation">Install</a>&nbsp;&nbsp;&bull;&nbsp;&nbsp;
-    <a href="https://github.com/securyblack/oxi-pulse#configuration">Configuration</a>&nbsp;&nbsp;&bull;&nbsp;&nbsp;
-    <a href="https://github.com/securyblack/oxi-pulse/releases/latest">Download</a>&nbsp;&nbsp;&bull;&nbsp;&nbsp;
+    <a href="https://github.com/securyblack/oxi-pulse#standalone-local-compilation--execution-cargo-run--zero-lock-in">Local Mode</a>&nbsp;&nbsp;&bull;&nbsp;&nbsp;
+    <a href=".github/SECURITY.md">Security Policy</a>&nbsp;&nbsp;&bull;&nbsp;&nbsp;
     <a href="https://securyblack.com">SecuryBlack Cloud</a>
   </strong>
 </p>
@@ -284,11 +285,15 @@ applies updates automatically. No manual intervention required.
 
 ---
 
-## Security
+## Security & Sudo / Root Privileges
 
-If you discover a security vulnerability, please follow our
-[Security Policy][urls.security_policy] and report it privately.
-**Do not open a public GitHub issue for security vulnerabilities.**
+Engineers rightfully scrutinize tools requesting `sudo`. OxiPulse is designed with strict least-privilege principles:
+- **Zero Root at Runtime**: Once installed, the systemd daemon drops root and runs as the isolated, unprivileged `oxipulse:oxipulse` system user.
+- **Zero Remote Code Execution**: OxiPulse is strictly a read-only observability agent. It contains no shell spawning (`/bin/sh`), dynamic eval, or remote commands.
+- **Read-Only Inspection**: Telemetry metrics are gathered purely from kernel pseudo-filesystems (`/proc` and `/sys`). It never modifies system configurations.
+
+See our full [.github/SECURITY.md](.github/SECURITY.md) for vulnerability reporting and detailed privileges specifications.
+**Do not open a public GitHub issue for security vulnerabilities.** Report privately to [security@securyblack.com](mailto:security@securyblack.com).
 
 ---
 

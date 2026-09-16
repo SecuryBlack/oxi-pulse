@@ -9,6 +9,27 @@ SecuryBlack actively supports and maintains the latest minor release line of Oxi
 | 0.3.x   | :white_check_mark: | Active support |
 | < 0.3.0 | :x:                | End of life |
 
+---
+
+## Privileges, Sudo & Superuser Safety
+
+Engineers and DevOps teams rightfully inspect open source code before running installation scripts with `sudo` or granting elevated privileges.
+
+### 1. Installation Privileges
+The install script requests `sudo` solely to:
+- Place the static binary into `/usr/local/bin/oxipulse` (owned by root, mode `0755`).
+- Create an unprivileged system user and group: `oxipulse:oxipulse`.
+- Register and start the systemd unit file at `/etc/systemd/system/oxipulse.service`.
+
+### 2. Runtime Isolation (Zero Superuser Privileges)
+Once installed and running as a systemd service:
+- **No root execution**: The daemon drops root and runs as the isolated, unprivileged `oxipulse` system user.
+- **Linux Capabilities**: It only retains minimal capabilities (`CAP_NET_RAW` for network latency checks) where explicitly configured.
+- **No Remote Command Execution**: OxiPulse is strictly a read-only observability agent. It contains **zero** remote command execution, shell spawning (`/bin/sh`), or dynamic code evaluation capabilities.
+- **Read-Only System Access**: All telemetry metrics are gathered by reading kernel pseudo-filesystems (`/proc` and `/sys`). The agent does not modify system configuration or network rules.
+
+---
+
 ## Reporting a Vulnerability
 
 We take the security of OxiPulse and our users' infrastructure seriously. If you discover a security vulnerability in OxiPulse, please report it through private channels.
