@@ -8,8 +8,8 @@
 [![OpenTelemetry](https://img.shields.io/badge/protocol-OpenTelemetry%20OTLP-blueviolet)](https://opentelemetry.io/)
 [![Rust](https://img.shields.io/badge/built%20with-Rust-orange.svg)](https://www.rust-lang.org/)
 
-> **Parte del ecosistema SecuryBlack:**
-> **OxiPulse (Métricas)** · [FerroSentry (Seguridad)](https://github.com/securyblack/ferro-sentry) · [CupraFlow (Alta Disponibilidad)](https://github.com/securyblack/cupra-flow) · [CromoForge (GitOps)](https://github.com/securyblack/cromo-forge) · [TitanVault (Backups)](https://github.com/securyblack/titan-vault) · [SecuryBlack Cloud](https://securyblack.com)
+> **Part of the SecuryBlack ecosystem:**
+> **OxiPulse (Metrics)** · [FerroSentry (Security)](https://github.com/securyblack/ferro-sentry) · [CupraFlow (High Availability)](https://github.com/securyblack/cupra-flow) · [CromoForge (GitOps)](https://github.com/securyblack/cromo-forge) · [TitanVault (Backups)](https://github.com/securyblack/titan-vault) · [SecuryBlack Cloud](https://securyblack.com)
 
 <br />
 
@@ -74,7 +74,7 @@ fully open source project under the Apache 2.0 license.
 ### Linux — one command
 
 ```bash
-curl -fsSL https://install.oxipulse.io | bash
+curl -fsSL https://install.oxipulse.dev | sudo bash
 ```
 
 The script will ask for your OTLP endpoint and auth token, then install the agent
@@ -83,7 +83,7 @@ as a **systemd service** with automatic restart.
 ### Windows — one command (PowerShell as Administrator)
 
 ```powershell
-irm https://install.oxipulse.io/windows | iex
+irm https://install.oxipulse.dev | iex
 ```
 
 The script installs the agent as a **Windows Service** with automatic restart on failure.
@@ -95,10 +95,10 @@ pre-filled install command — your endpoint and token are already included:
 
 ```bash
 # Linux
-curl -fsSL https://install.oxipulse.io | sudo bash -s -- \
+curl -fsSL https://install.oxipulse.dev | sudo bash
 
 # Windows
-irm https://install.oxipulse.io/windows | iex -Endpoint ingest.securyblack.com -Token <YOUR_TOKEN>
+irm https://install.oxipulse.dev | iex
 ```
 
 ### Autonomous Local Mode (Zero Vendor Lock-In)
@@ -302,19 +302,19 @@ See our full [.github/SECURITY.md](.github/SECURITY.md) for vulnerability report
 
 ---
 
-## 🌐 Ecosistema Open Source de SecuryBlack
+## 🌐 SecuryBlack Open Source Ecosystem
 
-OxiPulse es el pilar de telemetría dentro de la suite de agentes modulares de SecuryBlack:
+OxiPulse is the telemetry cornerstone of the SecuryBlack modular agent suite:
 
-| Agente | Enfoque Principal | Web Oficial | Repositorio |
+| Agent | Core Focus | Official Website | Repository |
 | :--- | :--- | :--- | :--- |
-| **OxiPulse** | Telemetría, métricas OTLP y logs sin overhead | [oxipulse.dev](https://oxipulse.dev) | [securyblack/oxi-pulse](https://github.com/securyblack/oxi-pulse) |
-| **FerroSentry** | EDR ligero, auditd, detección de fuerza bruta y firewall | [ferrosentry.dev](https://ferrosentry.dev) | [securyblack/ferro-sentry](https://github.com/securyblack/ferro-sentry) |
-| **CupraFlow** | Alta disponibilidad, IP flotante VIP y balanceo de tráfico | [cupraflow.dev](https://cupraflow.dev) | [securyblack/cupra-flow](https://github.com/securyblack/cupra-flow) |
-| **CromoForge** | Despliegues continuos, GitOps y gestión de contenedores | [cromoforge.dev](https://cromoforge.dev) | [securyblack/cromo-forge](https://github.com/securyblack/cromo-forge) |
-| **TitanVault** | Copias de seguridad en streaming y recuperación ante desastres | [titanvault.dev](https://titanvault.dev) | [securyblack/titan-vault](https://github.com/securyblack/titan-vault) |
+| **OxiPulse** | Telemetry, OTLP metrics, and zero-overhead vital signs | [oxipulse.dev](https://oxipulse.dev) | [securyblack/oxi-pulse](https://github.com/securyblack/oxi-pulse) |
+| **FerroSentry** | Lightweight EDR, auditd, brute-force mitigation & firewall | [ferrosentry.dev](https://ferrosentry.dev) | [securyblack/ferro-sentry](https://github.com/securyblack/ferro-sentry) |
+| **CupraFlow** | High availability, floating VIP failover & traffic balancing | [cupraflow.dev](https://cupraflow.dev) | [securyblack/cupra-flow](https://github.com/securyblack/cupra-flow) |
+| **CromoForge** | Continuous delivery, GitOps & container management | [cromoforge.dev](https://cromoforge.dev) | [securyblack/cromo-forge](https://github.com/securyblack/cromo-forge) |
+| **TitanVault** | Zero-disk streaming backups & disaster recovery | [titanvault.dev](https://titanvault.dev) | [securyblack/titan-vault](https://github.com/securyblack/titan-vault) |
 
-Todos los agentes pueden gestionarse de forma centralizada y visual conectándolos a [SecuryBlack Cloud](https://securyblack.com).
+All agents can be centrally managed with unified observability by connecting them to [SecuryBlack Cloud](https://securyblack.com).
 
 ---
 
