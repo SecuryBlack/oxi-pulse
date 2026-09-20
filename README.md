@@ -1,10 +1,15 @@
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+[![Website](https://img.shields.io/badge/Website-oxipulse.dev-33E1BF?style=flat-square)](https://oxipulse.dev)
+[![Ecosystem](https://img.shields.io/badge/Ecosystem-SecuryBlack-33E1BF?style=flat-square)](https://securyblack.com)
 [![Security Policy](https://img.shields.io/badge/security-policy-green.svg)](.github/SECURITY.md)
 [![CI](https://github.com/securyblack/oxi-pulse/actions/workflows/release.yml/badge.svg)](https://github.com/securyblack/oxi-pulse/actions)
 [![Arch](https://img.shields.io/badge/arch-x86__64%20%7C%20aarch64-informational?logo=linux&logoColor=white)](https://github.com/securyblack/oxi-pulse/releases)
 [![RAM](https://img.shields.io/badge/RAM-%3C%2015%20MB-brightgreen)](#principles)
 [![OpenTelemetry](https://img.shields.io/badge/protocol-OpenTelemetry%20OTLP-blueviolet)](https://opentelemetry.io/)
 [![Rust](https://img.shields.io/badge/built%20with-Rust-orange.svg)](https://www.rust-lang.org/)
+
+> **Parte del ecosistema SecuryBlack:**
+> **OxiPulse (Métricas)** · [FerroSentry (Seguridad)](https://github.com/securyblack/ferro-sentry) · [CupraFlow (Alta Disponibilidad)](https://github.com/securyblack/cupra-flow) · [CromoForge (GitOps)](https://github.com/securyblack/cromo-forge) · [TitanVault (Backups)](https://github.com/securyblack/titan-vault) · [SecuryBlack Cloud](https://securyblack.com)
 
 <br />
 
@@ -294,6 +299,22 @@ Engineers rightfully scrutinize tools requesting `sudo`. OxiPulse is designed wi
 
 See our full [.github/SECURITY.md](.github/SECURITY.md) for vulnerability reporting and detailed privileges specifications.
 **Do not open a public GitHub issue for security vulnerabilities.** Report privately to [security@securyblack.com](mailto:security@securyblack.com).
+
+---
+
+## 🌐 Ecosistema Open Source de SecuryBlack
+
+OxiPulse es el pilar de telemetría dentro de la suite de agentes modulares de SecuryBlack:
+
+| Agente | Enfoque Principal | Web Oficial | Repositorio |
+| :--- | :--- | :--- | :--- |
+| **OxiPulse** | Telemetría, métricas OTLP y logs sin overhead | [oxipulse.dev](https://oxipulse.dev) | [securyblack/oxi-pulse](https://github.com/securyblack/oxi-pulse) |
+| **FerroSentry** | EDR ligero, auditd, detección de fuerza bruta y firewall | [ferrosentry.dev](https://ferrosentry.dev) | [securyblack/ferro-sentry](https://github.com/securyblack/ferro-sentry) |
+| **CupraFlow** | Alta disponibilidad, IP flotante VIP y balanceo de tráfico | [cupraflow.dev](https://cupraflow.dev) | [securyblack/cupra-flow](https://github.com/securyblack/cupra-flow) |
+| **CromoForge** | Despliegues continuos, GitOps y gestión de contenedores | [cromoforge.dev](https://cromoforge.dev) | [securyblack/cromo-forge](https://github.com/securyblack/cromo-forge) |
+| **TitanVault** | Copias de seguridad en streaming y recuperación ante desastres | [titanvault.dev](https://titanvault.dev) | [securyblack/titan-vault](https://github.com/securyblack/titan-vault) |
+
+Todos los agentes pueden gestionarse de forma centralizada y visual conectándolos a [SecuryBlack Cloud](https://securyblack.com).
 
 ---
 
