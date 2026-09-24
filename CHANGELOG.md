@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.13] - 2026-09-15
+
+### Added
+- **Telemetry**: Report host CPU model, core counts, architecture, and detailed OS distribution in resource attributes to OTLP gateway.
+- **Installer**: Support execution policy bypass and forced TLS 1.2+ for Windows Server 2019 compatibility.
+
+## [0.3.12] - 2026-09-15
+
+### Added
+- **Telemetry**: Collect and export system load averages (1m, 5m, 15m), swap space metrics, and detailed host uptime.
+- **Networking**: Normalize endpoint scheme parsing and enforce TLS strictly on HTTPS endpoints.
+
+## [0.3.11] - 2026-08-24
+
+### Added
+- **Commands**: Implement `update_now` management command allowing on-demand manual agent updates triggered remotely from the dashboard.
+
+## [0.3.10] - 2026-08-23
+
+### Changed
+- **Dependencies**: Consume `sb-agent-core` from crates.io registry.
+
+## [0.3.9] - 2026-08-23
+
+### Changed
+- **Architecture**: Complete retrofit onto shared `sb-agent-core` runtime (unified config parser, updater, structured logging, service lifecycle, status socket, and interactive TUI `oxipulse top` / `oxipulse status`).
+
 ## [0.3.8] - 2026-07-28
 
 ### Added
@@ -71,7 +98,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Self-updating mechanism via GitHub Releases.
 - Offline buffer with exponential backoff for network outages.
 
-[Unreleased]: https://github.com/SecuryBlack/oxi-pulse/compare/v0.3.8...HEAD
+[Unreleased]: https://github.com/SecuryBlack/oxi-pulse/compare/v0.3.13...HEAD
+[0.3.13]: https://github.com/SecuryBlack/oxi-pulse/compare/v0.3.12...v0.3.13
+[0.3.12]: https://github.com/SecuryBlack/oxi-pulse/compare/v0.3.11...v0.3.12
+[0.3.11]: https://github.com/SecuryBlack/oxi-pulse/compare/v0.3.10...v0.3.11
+[0.3.10]: https://github.com/SecuryBlack/oxi-pulse/compare/v0.3.9...v0.3.10
+[0.3.9]: https://github.com/SecuryBlack/oxi-pulse/compare/v0.3.8...v0.3.9
 [0.3.8]: https://github.com/SecuryBlack/oxi-pulse/compare/v0.3.7...v0.3.8
 [0.3.7]: https://github.com/SecuryBlack/oxi-pulse/compare/v0.3.6...v0.3.7
 [0.3.5]: https://github.com/SecuryBlack/oxi-pulse/compare/v0.3.4...v0.3.5
