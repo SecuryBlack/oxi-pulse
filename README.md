@@ -1,15 +1,28 @@
+# OxiPulse
+
+Open source Rust agent for server telemetry and OTLP export.
+
+## Use with SecuryBlack
+
+SecuryBlack is a hosted panel for server metrics, security findings and alerts. This repository contains the native agent; the hosted panel is a separate part of the product.
+
+[Watch the 42-second product demo](https://securyblack.com/en?utm_source=github&utm_medium=referral&utm_campaign=agent_readme&utm_content=oxi-pulse#how-it-works) · [Open the hosted panel](https://app.securyblack.com) · [Installation documentation](https://securyblack.com/en/docs/installation)
+
+[![SecuryBlack product demo](https://securyblack.com/videos/securyblack-launch-en.png)](https://securyblack.com/en?utm_source=github&utm_medium=referral&utm_campaign=agent_readme&utm_content=oxi-pulse#how-it-works)
+
+Follow the agent-specific installation and configuration instructions below. Use the hosted panel to obtain connection settings for your server.
+
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 [![Website](https://img.shields.io/badge/Website-oxipulse.dev-33E1BF?style=flat-square)](https://oxipulse.dev)
 [![Ecosystem](https://img.shields.io/badge/Ecosystem-SecuryBlack-33E1BF?style=flat-square)](https://securyblack.com)
 [![Security Policy](https://img.shields.io/badge/security-policy-green.svg)](.github/SECURITY.md)
 [![CI](https://github.com/securyblack/oxi-pulse/actions/workflows/release.yml/badge.svg)](https://github.com/securyblack/oxi-pulse/actions)
 [![Arch](https://img.shields.io/badge/arch-x86__64%20%7C%20aarch64-informational?logo=linux&logoColor=white)](https://github.com/securyblack/oxi-pulse/releases)
-[![RAM](https://img.shields.io/badge/RAM-%3C%2015%20MB-brightgreen)](#principles)
 [![OpenTelemetry](https://img.shields.io/badge/protocol-OpenTelemetry%20OTLP-blueviolet)](https://opentelemetry.io/)
 [![Rust](https://img.shields.io/badge/built%20with-Rust-orange.svg)](https://www.rust-lang.org/)
 
 > **Part of the SecuryBlack ecosystem:**
-> **OxiPulse (Metrics)** · [FerroSentry (Security)](https://github.com/securyblack/ferro-sentry) · [CupraFlow (High Availability)](https://github.com/securyblack/cupra-flow) · [CromoForge (GitOps)](https://github.com/securyblack/cromo-forge) · [TitanVault (Backups)](https://github.com/securyblack/titan-vault) · [SecuryBlack Cloud](https://securyblack.com)
+> **OxiPulse (Metrics)** · [FerroSentry (Security)](https://github.com/securyblack/ferro-sentry) · [CupraFlow (Networking/HA development)](https://github.com/securyblack/cupra-flow) · [CromoForge (Docker/PostgreSQL)](https://github.com/securyblack/cromo-forge) · [TitanVault (Backups)](https://github.com/securyblack/titan-vault) · [SecuryBlack Cloud](https://securyblack.com)
 
 <br />
 
@@ -37,12 +50,12 @@ to any [OpenTelemetry][urls.otel]-compatible backend using the OTLP protocol.
 
 OxiPulse is designed to be the monitoring agent you actually want to run:
 
-- **No bloat.** A single static binary with near-zero CPU and memory overhead.
+- **No bloat.** A single static binary with a focus on efficient resource use.
 - **No lock-in.** Send metrics to [SecuryBlack Cloud][urls.securyblack], your own self-hosted
   collector, Grafana Cloud, Datadog, or any OTLP endpoint — your choice.
 - **No downtime on updates.** The agent updates itself daily from GitHub Releases
   and restarts cleanly through your service manager.
-- **No data loss.** An offline buffer survives network outages and flushes
+- **Buffered delivery.** An offline buffer handles temporary network outages and flushes
   automatically when the connection is restored.
 
 OxiPulse is maintained by [SecuryBlack][urls.securyblack]'s engineering team as a
@@ -55,8 +68,7 @@ fully open source project under the Apache 2.0 license.
 - **Standard protocol** — Uses [OpenTelemetry OTLP][urls.otel], the industry standard for
   telemetry. No proprietary wire formats.
 - **Vendor-neutral** — The agent has no hardcoded backend. Point it anywhere.
-- **Resilient** — Exponential backoff and an in-memory ring buffer ensure no data
-  is dropped during outages, up to 24 hours of buffering by default.
+- **Resilient** — Exponential backoff and an in-memory ring buffer buffer telemetry during temporary outages within the configured limits.
 - **Self-updating** — Automatically pulls the correct binary for your platform
   from GitHub Releases once per day.
 
@@ -308,11 +320,11 @@ OxiPulse is the telemetry cornerstone of the SecuryBlack modular agent suite:
 
 | Agent | Core Focus | Official Website | Repository |
 | :--- | :--- | :--- | :--- |
-| **OxiPulse** | Telemetry, OTLP metrics, and zero-overhead vital signs | [oxipulse.dev](https://oxipulse.dev) | [securyblack/oxi-pulse](https://github.com/securyblack/oxi-pulse) |
+| **OxiPulse** | Server telemetry and OTLP metrics | [oxipulse.dev](https://oxipulse.dev) | [securyblack/oxi-pulse](https://github.com/securyblack/oxi-pulse) |
 | **FerroSentry** | Lightweight EDR, auditd, brute-force mitigation & firewall | [ferrosentry.dev](https://ferrosentry.dev) | [securyblack/ferro-sentry](https://github.com/securyblack/ferro-sentry) |
-| **CupraFlow** | High availability, floating VIP failover & traffic balancing | [cupraflow.dev](https://cupraflow.dev) | [securyblack/cupra-flow](https://github.com/securyblack/cupra-flow) |
-| **CromoForge** | Continuous delivery, GitOps & container management | [cromoforge.dev](https://cromoforge.dev) | [securyblack/cromo-forge](https://github.com/securyblack/cromo-forge) |
-| **TitanVault** | Zero-disk streaming backups & disaster recovery | [titanvault.dev](https://titanvault.dev) | [securyblack/titan-vault](https://github.com/securyblack/titan-vault) |
+| **CupraFlow** | Networking/HA development (not operationally verified) | [cupraflow.dev](https://cupraflow.dev) | [securyblack/cupra-flow](https://github.com/securyblack/cupra-flow) |
+| **CromoForge** | Docker containers, logs & PostgreSQL management | [cromoforge.dev](https://cromoforge.dev) | [securyblack/cromo-forge](https://github.com/securyblack/cromo-forge) |
+| **TitanVault** | Streaming backups (restore workflow not verified) | [titanvault.dev](https://titanvault.dev) | [securyblack/titan-vault](https://github.com/securyblack/titan-vault) |
 
 All agents can be centrally managed with unified observability by connecting them to [SecuryBlack Cloud](https://securyblack.com).
 
@@ -345,3 +357,7 @@ All dependencies are compatible with Apache 2.0 (MIT, Apache-2.0, or BSD license
 [urls.code_of_conduct]: https://github.com/securyblack/oxi-pulse/blob/main/CODE_OF_CONDUCT.md
 [urls.conventional_commits]: https://www.conventionalcommits.org/
 [urls.semver]: https://semver.org/
+
+## Maintainer context (workspace)
+
+English is the primary language for this repository's public documentation. Shared product decisions, commercial terms and the backlog live in the [workspace wiki](../sb-wiki/Índice.md), [current state](../sb-wiki/Producto/Estado%20actual.md) and [product log](../sb-wiki/Producto/Bitácora.md). These links require `sb-wiki` as a sibling checkout. Keep agent-specific usage and technical contracts here; update shared decisions in the wiki.
