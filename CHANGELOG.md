@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Examples**: Grafana dashboard "OxiPulse hosts" (`examples/prometheus-grafana/grafana/oxipulse-hosts.json`), provisioned as the home page of the Docker Compose example.
+
 ## [0.3.14] - 2026-10-07
 
 ### Changed

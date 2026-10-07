@@ -37,7 +37,7 @@ On every Linux host you want to monitor:
 curl -fsSL https://install.oxipulse.dev | sudo bash -s -- --endpoint http://<collector-host>:4317
 ```
 
-Open Grafana on `http://<collector-host>:3000` and query `system_cpu_usage_percent`. More queries in [examples/prometheus-grafana](examples/prometheus-grafana/README.md).
+Open Grafana on `http://<collector-host>:3000`: the home page is a ready-made OxiPulse dashboard with every host. Details in [examples/prometheus-grafana](examples/prometheus-grafana/README.md).
 
 Prefer to read the installer first? It is [scripts/install.sh](scripts/install.sh) (and [install.ps1](scripts/install.ps1) for Windows). You can also download the binary from [Releases][urls.releases] and run it yourself.
 

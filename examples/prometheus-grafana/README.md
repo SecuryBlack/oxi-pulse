@@ -12,7 +12,9 @@ Then install OxiPulse on each host you want to monitor, pointing it at this mach
 curl -fsSL https://install.oxipulse.dev | sudo bash -s -- --endpoint http://<this-machine>:4317
 ```
 
-Open Grafana at `http://<this-machine>:3000` (default login `admin` / `admin`, change it), go to **Explore** and try:
+Open Grafana at `http://<this-machine>:3000` (default login `admin` / `admin`, change it). The home page is the **OxiPulse hosts** dashboard: a table with every host, then CPU, memory, disk, swap, network, load and latency. Pick hosts with the `Host` selector. The dashboard is [grafana/oxipulse-hosts.json](grafana/oxipulse-hosts.json); you can also import it into an existing Grafana that reads these metrics from Prometheus.
+
+To write your own panels, go to **Explore** and try:
 
 | What | PromQL |
 |---|---|
