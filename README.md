@@ -14,6 +14,7 @@ One binary (about 4 MB download), installed as a systemd or Windows service. It 
   <img src="assets/oxipulse-banner.png" alt="OxiPulse" width="560" />
 </p>
 
+- **Light.** 15.5 MB of private memory and 0.07 % of one CPU core in steady state at the default 30 s interval (measured over 5 minutes on Windows 11, i5-12600K; Linux benchmark scripts to follow).
 - **Vendor-neutral.** Standard OTLP. No account needed, no hardcoded backend.
 - **Offline buffer.** Keeps up to 72 h of snapshots (default) while the backend is unreachable and flushes them when it comes back.
 - **Self-updating, optionally.** Checks GitHub Releases daily; turn it off with `auto_update = false`.
