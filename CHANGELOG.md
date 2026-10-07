@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.14] - 2026-10-07
+
 ### Changed
 - **Privacy**: Usage telemetry to SecuryBlack is now off by default. With `telemetry_enabled` unset, the agent only fetches the SecuryBlack remote config when the endpoint is SecuryBlack Cloud. Previously it sent the configured token to `api.securyblack.com` regardless of the endpoint.
 - **Config**: `token` is optional; no `Authorization` header is sent when it is empty, for collectors without auth.
