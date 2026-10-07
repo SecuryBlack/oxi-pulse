@@ -11,22 +11,36 @@ SecuryBlack actively supports and maintains the latest minor release line of Oxi
 
 ---
 
-## Privileges, Sudo & Superuser Safety
+## Privileges and network access
 
-Engineers and DevOps teams rightfully inspect open source code before running installation scripts with `sudo` or granting elevated privileges.
+You should know exactly what an agent does before running its installer with `sudo`. This section describes the current behaviour of OxiPulse, including its limitations.
 
-### 1. Installation Privileges
-The install script requests `sudo` solely to:
-- Place the static binary into `/usr/local/bin/oxipulse` (owned by root, mode `0755`).
-- Create an unprivileged system user and group: `oxipulse:oxipulse`.
-- Register and start the systemd unit file at `/etc/systemd/system/oxipulse.service`.
+### Installation (Linux)
 
-### 2. Runtime Isolation (Zero Superuser Privileges)
-Once installed and running as a systemd service:
-- **No root execution**: The daemon drops root and runs as the isolated, unprivileged `oxipulse` system user.
-- **Linux Capabilities**: It only retains minimal capabilities (`CAP_NET_RAW` for network latency checks) where explicitly configured.
-- **No Remote Command Execution**: OxiPulse is strictly a read-only observability agent. It contains **zero** remote command execution, shell spawning (`/bin/sh`), or dynamic code evaluation capabilities.
-- **Read-Only System Access**: All telemetry metrics are gathered by reading kernel pseudo-filesystems (`/proc` and `/sys`). The agent does not modify system configuration or network rules.
+The install script needs root to:
+
+- place the binary at `/usr/local/bin/oxipulse`;
+- write `/etc/oxipulse/config.toml` (directory mode `0700`, file mode `0600`, because it may contain your collector token);
+- register and start the systemd unit `/etc/systemd/system/oxipulse.service`.
+
+It downloads the release archive from GitHub Releases and verifies it against the published SHA-256 checksum before installing it.
+
+### Runtime
+
+- **The service currently runs as root.** The generated unit has no `User=` directive, because the self-updater needs to replace the binary in `/usr/local/bin`. Running as a dedicated unprivileged user is on the roadmap. If you need it today, disable self-update (`auto_update = false`) and add `User=`/`Group=` plus your own hardening to the unit with `systemctl edit oxipulse`.
+- **Metrics are read-only.** CPU, memory, swap, disk, network, load and uptime come from the operating system (`/proc` and `/sys` on Linux, via the `sysinfo` crate). The agent does not change system configuration.
+- **No shell or remote code execution.** There is no shell spawning or dynamic evaluation. The only command the agent accepts is `update_now`, through a local Unix socket / named pipe used by the SecuryBlack companion agent; it triggers the same GitHub Releases update check as the daily updater.
+
+### Outbound connections
+
+| Destination | When | What is sent |
+|---|---|---|
+| Your OTLP `endpoint` | Every `interval_secs` (default 30 s) | The metrics listed in the README and host attributes (host name, OS, kernel, CPU model). Your `token`, if set, as `Authorization: Bearer` |
+| `api.github.com` / GitHub Releases | Once a day, unless `auto_update = false` | A request for the latest release; if there is a newer one, downloads it over HTTPS and replaces the binary. The updater does not verify checksums or signatures yet (the installer does). Set `auto_update = false` if your policy requires reviewed upgrades |
+| Latency targets | Every interval | A TCP connection to your endpoint and to `1.1.1.1:53` (default) to measure latency. Override with `latency_targets` |
+| `api.securyblack.com` | **Only** when the endpoint is SecuryBlack Cloud, or when you set `telemetry_enabled = true` | Agent version, OS, architecture, interval, uptime, exported-metric count, buffer usage, last error kind. No metric values |
+
+With any non-SecuryBlack endpoint and default settings, OxiPulse never contacts SecuryBlack and never sends your token anywhere except your own endpoint.
 
 ---
 

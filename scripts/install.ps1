@@ -9,7 +9,8 @@
 param(
     [string]$Endpoint = "",
     [string]$Token    = "",
-    [string]$Mode     = ""
+    [string]$Mode     = "",
+    [switch]$NoAutoUpdate
 )
 
 # Compatibilidad Windows Server 2019 / PS 5.1: Forzar TLS 1.2+ y permitir sub-scripts
@@ -64,13 +65,12 @@ try {
         $Endpoint = Read-Host "  OTLP endpoint (e.g. https://ingest.example.com:4317)"
     }
     if (-not $Token) {
-        $secToken = Read-Host "  Auth token" -AsSecureString
+        $secToken = Read-Host "  Auth token (leave empty if your collector needs none)" -AsSecureString
         $Token    = [Runtime.InteropServices.Marshal]::PtrToStringAuto(
                         [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secToken))
     }
 
     if (-not $Endpoint) { Invoke-SbFail "Endpoint cannot be empty" }
-    if (-not $Token)    { Invoke-SbFail "Token cannot be empty" }
 
     Write-SbInfo "Writing config to $ConfigFile..."
     $effectiveMode = if ($Mode) { $Mode } else { "direct" }
@@ -83,6 +83,7 @@ endpoint = "$Endpoint"
 token = "$Token"
 interval_secs = 30
 buffer_max_size = 8640
+auto_update = $(if ($NoAutoUpdate) { 'false' } else { 'true' })
 "@ | Set-Content -Path $ConfigFile -Encoding UTF8
 
     Protect-SbConfigFile -Path $ConfigFile

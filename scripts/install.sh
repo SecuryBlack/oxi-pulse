@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # OxiPulse — Install script
-# Usage (generic):    curl -fsSL https://install.oxipulse.dev | bash
+# Usage (generic):    curl -fsSL https://install.oxipulse.dev | sudo bash -s -- --endpoint http://collector:4317
+# Options: --token <TOKEN> (optional), --mode local_agent, --no-auto-update
 # Usage (SecuryBlack): curl -fsSL https://install.oxipulse.dev | bash -s -- --endpoint ingest.securyblack.com --token <TOKEN>
 set -euo pipefail
 
@@ -23,12 +24,14 @@ CONFIG_FILE="${CONFIG_DIR}/config.toml"
 ENDPOINT=""
 TOKEN=""
 MODE=""
+AUTO_UPDATE="true"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --endpoint) ENDPOINT="$2"; shift 2 ;;
     --token)    TOKEN="$2";    shift 2 ;;
     --mode)     MODE="$2";     shift 2 ;;
+    --no-auto-update) AUTO_UPDATE="false"; shift ;;
     *) sb_die "Unknown argument: $1" ;;
   esac
 done
@@ -74,13 +77,13 @@ if [[ -z "$ENDPOINT" ]]; then
   echo ""
   read -rp "$(echo -e "${BOLD}  OTLP endpoint (e.g. https://ingest.example.com:4317):${RESET} ")" ENDPOINT </dev/tty
 fi
-if [[ -z "$TOKEN" ]]; then
-  read -rsp "$(echo -e "${BOLD}  Auth token:${RESET} ")" TOKEN </dev/tty
+# Token is optional (collectors without auth). Only prompt when interactive.
+if [[ -z "$TOKEN" ]] && (exec 3</dev/tty) 2>/dev/null; then
+  read -rsp "$(echo -e "${BOLD}  Auth token (leave empty if your collector needs none):${RESET} ")" TOKEN </dev/tty || true
   echo ""
 fi
 
 [[ -z "$ENDPOINT" ]] && sb_die "Endpoint cannot be empty"
-[[ -z "$TOKEN" ]]    && sb_die "Token cannot be empty"
 
 sb_info "Writing config to ${CONFIG_FILE}…"
 cat > "$CONFIG_FILE" <<EOF
@@ -91,6 +94,7 @@ endpoint = "${ENDPOINT}"
 token = "${TOKEN}"
 interval_secs = 30
 buffer_max_size = 8640
+auto_update = ${AUTO_UPDATE}
 EOF
 chmod 600 "$CONFIG_FILE"
 sb_success "Config written"

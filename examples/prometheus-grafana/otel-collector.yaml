@@ -1,0 +1,19 @@
+# Receives OTLP/gRPC from OxiPulse and exposes the metrics for Prometheus.
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+
+exporters:
+  prometheus:
+    endpoint: 0.0.0.0:8889
+    # Turns resource attributes (host.name, host.os.name, ...) into labels.
+    resource_to_telemetry_conversion:
+      enabled: true
+
+service:
+  pipelines:
+    metrics:
+      receivers: [otlp]
+      exporters: [prometheus]

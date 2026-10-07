@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Privacy**: Usage telemetry to SecuryBlack is now off by default. With `telemetry_enabled` unset, the agent only fetches the SecuryBlack remote config when the endpoint is SecuryBlack Cloud. Previously it sent the configured token to `api.securyblack.com` regardless of the endpoint.
+- **Config**: `token` is optional; no `Authorization` header is sent when it is empty, for collectors without auth.
+- **Installer**: The token prompt accepts an empty value and is skipped when there is no terminal.
+
+### Added
+- **Config**: `auto_update` (`OXIPULSE_AUTO_UPDATE`) to disable the daily self-update. Installer flags `--no-auto-update` / `-NoAutoUpdate`.
+- **Telemetry**: `host.name` resource attribute, so several hosts can share one backend.
+- **Docs**: Self-hosted example (`examples/prometheus-grafana`), list of outbound connections, known limitations, and corrected metric names and privilege notes in README and SECURITY.md.
+
 ## [0.3.13] - 2026-09-15
 
 ### Added

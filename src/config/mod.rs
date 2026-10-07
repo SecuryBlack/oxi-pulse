@@ -9,7 +9,8 @@ pub struct Config {
     /// OTLP collector endpoint (e.g. "https://ingest.example.com:4317")
     #[serde(default)]
     pub endpoint: String,
-    /// Authentication token sent as a header to the OTLP collector
+    /// Authentication token sent as a Bearer header to the OTLP collector.
+    /// Optional: leave empty for collectors that need no auth.
     #[serde(default)]
     pub token: String,
     /// Deployment mode: "direct" (default) or "local_agent" (sends to localhost:4317)
@@ -22,7 +23,8 @@ pub struct Config {
     #[serde(default = "default_buffer_max")]
     pub buffer_max_size: usize,
     /// Opt-in usage telemetry sent to SecuryBlack.
-    /// - absent / not set → defers to server-side config (fetched on startup)
+    /// - absent / not set → off, unless the endpoint is SecuryBlack Cloud, in
+    ///   which case the account's server-side setting decides
     /// - true             → always enabled, ignores server-side config
     /// - false            → always disabled, ignores server-side config
     #[serde(default)]
@@ -34,6 +36,9 @@ pub struct Config {
     /// Optional list of latency targets to check. Defaults to empty (which falls back to the endpoint).
     #[serde(default)]
     pub latency_targets: Vec<String>,
+    /// Check GitHub Releases daily and self-update (default: true).
+    #[serde(default = "default_auto_update")]
+    pub auto_update: bool,
 }
 
 impl Default for Config {
@@ -48,6 +53,7 @@ impl Default for Config {
             telemetry_enabled: None,
             api_url: default_api_url(),
             latency_targets: Vec::new(),
+            auto_update: default_auto_update(),
         }
     }
 }
@@ -60,6 +66,10 @@ fn default_buffer_max() -> usize {
     8640
 }
 
+fn default_auto_update() -> bool {
+    true
+}
+
 fn default_api_url() -> String {
     "https://api.securyblack.com".to_string()
 }
@@ -67,7 +77,6 @@ fn default_api_url() -> String {
 #[derive(Debug)]
 pub enum ConfigError {
     MissingEndpoint,
-    MissingToken,
     ParseError(String),
 }
 
@@ -77,10 +86,6 @@ impl std::fmt::Display for ConfigError {
             ConfigError::MissingEndpoint => write!(
                 f,
                 "missing OTLP endpoint — set 'endpoint' in config.toml or OXIPULSE_ENDPOINT env var"
-            ),
-            ConfigError::MissingToken => write!(
-                f,
-                "missing auth token — set 'token' in config.toml or OXIPULSE_TOKEN env var"
             ),
             ConfigError::ParseError(msg) => write!(f, "config parse error: {}", msg),
         }
@@ -121,6 +126,13 @@ impl Config {
                 _ => {}
             }
         }
+        if let Ok(v) = env::var("OXIPULSE_AUTO_UPDATE") {
+            match v.to_lowercase().as_str() {
+                "true" | "1" | "yes" => cfg.auto_update = true,
+                "false" | "0" | "no" => cfg.auto_update = false,
+                _ => {}
+            }
+        }
         if let Ok(v) = env::var("OXIPULSE_API_URL") {
             cfg.api_url = v;
         }
@@ -143,15 +155,26 @@ impl Config {
         if cfg.endpoint.is_empty() {
             return Err(ConfigError::MissingEndpoint);
         }
-        if cfg.token.is_empty() {
-            return Err(ConfigError::MissingToken);
-        }
 
         let current_pkg_version = env!("CARGO_PKG_VERSION");
         cfg.version = Some(current_pkg_version.to_string());
         let _ = sb_agent_core::config::sync_version_field(&config_path, current_pkg_version);
 
         Ok(cfg)
+    }
+}
+
+impl Config {
+    /// True when metrics go to SecuryBlack Cloud. Only then may the agent talk
+    /// to the SecuryBlack API with `token`: for any other backend the token is
+    /// a third-party credential and must never leave towards SecuryBlack.
+    pub fn is_securyblack_endpoint(&self) -> bool {
+        let rest = self
+            .endpoint
+            .split_once("://")
+            .map_or(self.endpoint.as_str(), |(_, r)| r);
+        let host = rest.split(['/', ':']).next().unwrap_or("");
+        host == "securyblack.com" || host.ends_with(".securyblack.com")
     }
 }
 
@@ -162,11 +185,24 @@ mod tests {
     #[test]
     fn test_config_error_display() {
         assert!(format!("{}", ConfigError::MissingEndpoint).contains("missing OTLP endpoint"));
-        assert!(format!("{}", ConfigError::MissingToken).contains("missing auth token"));
         assert!(
             format!("{}", ConfigError::ParseError("invalid toml".to_string()))
                 .contains("invalid toml")
         );
+    }
+
+    #[test]
+    fn test_is_securyblack_endpoint() {
+        let with = |e: &str| Config {
+            endpoint: e.to_string(),
+            ..Config::default()
+        };
+        assert!(with("https://ingest.securyblack.com:4317").is_securyblack_endpoint());
+        assert!(with("ingest.securyblack.com").is_securyblack_endpoint());
+        assert!(!with("https://otlp.grafana.net:443").is_securyblack_endpoint());
+        assert!(!with("http://localhost:4317").is_securyblack_endpoint());
+        assert!(!with("https://securyblack.com.evil.io").is_securyblack_endpoint());
+        assert!(!with("https://notsecuryblack.com").is_securyblack_endpoint());
     }
 
     #[test]

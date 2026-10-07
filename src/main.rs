@@ -47,6 +47,7 @@ async fn run(mut shutdown: tokio::sync::oneshot::Receiver<()>) {
     let kernel_version = sysinfo::System::kernel_version();
 
     let host_info = telemetry::HostInfo {
+        host_name: sysinfo::System::host_name(),
         cpu_model,
         os_name,
         os_version,
@@ -65,12 +66,16 @@ async fn run(mut shutdown: tokio::sync::oneshot::Receiver<()>) {
     info!("OTLP exporter initialised");
     status_handle.set_state("running");
 
-    sb_agent_core::updater::start_daily_check(sb_agent_core::updater::UpdaterConfig::new(
-        "securyblack",
-        "oxi-pulse",
-        "oxipulse",
-        env!("CARGO_PKG_VERSION"),
-    ));
+    if cfg.auto_update {
+        sb_agent_core::updater::start_daily_check(sb_agent_core::updater::UpdaterConfig::new(
+            "securyblack",
+            "oxi-pulse",
+            "oxipulse",
+            env!("CARGO_PKG_VERSION"),
+        ));
+    } else {
+        info!("auto-update disabled by config");
+    }
 
     let command_registry = sb_agent_core::command_intake::CommandRegistry::new();
     management::register(&command_registry);
@@ -83,9 +88,12 @@ async fn run(mut shutdown: tokio::sync::oneshot::Receiver<()>) {
     // Resolve effective telemetry flag:
     //   Some(true)  → explicit opt-in (local config / env var)
     //   Some(false) → explicit opt-out — never fetch remote config
-    //   None        → defer to server-side config fetched from the API
+    //   None        → off, except for SecuryBlack Cloud endpoints, where the
+    //                 account's server-side setting decides. Never send the
+    //                 token of a third-party OTLP backend to SecuryBlack.
     let telemetry_active = match cfg.telemetry_enabled {
         Some(v) => v,
+        None if !cfg.is_securyblack_endpoint() || cfg.token.is_empty() => false,
         None => {
             info!(api_url = %cfg.api_url, "fetching remote config");
             match phone_home::fetch_remote_config(&cfg.api_url, &cfg.token).await {

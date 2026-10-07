@@ -33,6 +33,7 @@ pub struct Instruments {
 
 #[derive(Debug, Clone, Default)]
 pub struct HostInfo {
+    pub host_name: Option<String>,
     pub cpu_model: Option<String>,
     pub os_name: Option<String>,
     pub os_version: Option<String>,
@@ -54,10 +55,12 @@ pub fn init(
             endpoint.to_string()
         };
 
-    // Build metadata map with the auth token
+    // Build metadata map with the auth token (omitted for collectors without auth)
     let mut metadata = MetadataMap::new();
-    let auth_value = MetadataValue::try_from(format!("Bearer {}", token))?;
-    metadata.insert("authorization", auth_value);
+    if !token.is_empty() {
+        let auth_value = MetadataValue::try_from(format!("Bearer {}", token))?;
+        metadata.insert("authorization", auth_value);
+    }
 
     // Build the OTLP exporter
     let mut builder = MetricExporter::builder()
@@ -81,6 +84,9 @@ pub fn init(
         KeyValue::new("service.name", "oxipulse"),
         KeyValue::new("service.version", env!("CARGO_PKG_VERSION")),
     ];
+    if let Some(name) = host_info.host_name {
+        attrs.push(KeyValue::new("host.name", name));
+    }
     if let Some(cpu) = host_info.cpu_model {
         attrs.push(KeyValue::new("host.cpu.model", cpu));
     }

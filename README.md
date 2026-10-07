@@ -1,146 +1,77 @@
 # OxiPulse
 
-Open source Rust agent for server telemetry and OTLP export.
+**A small Rust agent that sends your servers' host metrics to any OpenTelemetry (OTLP) backend.**
 
-## Use with SecuryBlack
-
-SecuryBlack is a hosted panel for server metrics, security findings and alerts. This repository contains the native agent; the hosted panel is a separate part of the product.
-
-[Watch the 42-second product demo](https://securyblack.com/en?utm_source=github&utm_medium=referral&utm_campaign=agent_readme&utm_content=oxi-pulse#how-it-works) · [Open the hosted panel](https://app.securyblack.com) · [Installation documentation](https://securyblack.com/en/docs/installation)
-
-[![SecuryBlack product demo](https://securyblack.com/videos/securyblack-launch-en.png)](https://securyblack.com/en?utm_source=github&utm_medium=referral&utm_campaign=agent_readme&utm_content=oxi-pulse#how-it-works)
-
-Follow the agent-specific installation and configuration instructions below. Use the hosted panel to obtain connection settings for your server.
+One binary (about 4 MB download), installed as a systemd or Windows service. It collects CPU, memory, swap, disk, network, load average and uptime, and pushes them over OTLP/gRPC to your own collector, Grafana/Prometheus, any OTLP-compatible vendor, or [SecuryBlack Cloud][urls.securyblack].
 
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
-[![Website](https://img.shields.io/badge/Website-oxipulse.dev-33E1BF?style=flat-square)](https://oxipulse.dev)
-[![Ecosystem](https://img.shields.io/badge/Ecosystem-SecuryBlack-33E1BF?style=flat-square)](https://securyblack.com)
-[![Security Policy](https://img.shields.io/badge/security-policy-green.svg)](.github/SECURITY.md)
-[![CI](https://github.com/securyblack/oxi-pulse/actions/workflows/release.yml/badge.svg)](https://github.com/securyblack/oxi-pulse/actions)
+[![Release](https://img.shields.io/github/v/release/securyblack/oxi-pulse)](https://github.com/securyblack/oxi-pulse/releases/latest)
 [![Arch](https://img.shields.io/badge/arch-x86__64%20%7C%20aarch64-informational?logo=linux&logoColor=white)](https://github.com/securyblack/oxi-pulse/releases)
-[![OpenTelemetry](https://img.shields.io/badge/protocol-OpenTelemetry%20OTLP-blueviolet)](https://opentelemetry.io/)
-[![Rust](https://img.shields.io/badge/built%20with-Rust-orange.svg)](https://www.rust-lang.org/)
-
-> **Part of the SecuryBlack ecosystem:**
-> **OxiPulse (Metrics)** · [FerroSentry (Security)](https://github.com/securyblack/ferro-sentry) · [CupraFlow (Networking/HA development)](https://github.com/securyblack/cupra-flow) · [CromoForge (Docker/PostgreSQL)](https://github.com/securyblack/cromo-forge) · [TitanVault (Backups)](https://github.com/securyblack/titan-vault) · [SecuryBlack Cloud](https://securyblack.com)
-
-<br />
+[![OpenTelemetry](https://img.shields.io/badge/protocol-OTLP%2FgRPC-blueviolet)](https://opentelemetry.io/)
+[![Website](https://img.shields.io/badge/website-oxipulse.dev-33E1BF)](https://oxipulse.dev)
 
 <p align="center">
   <img src="assets/oxipulse-banner.png" alt="OxiPulse" width="560" />
 </p>
 
-<p align="center">
-  <strong>
-    <a href="https://github.com/securyblack/oxi-pulse#quickstart">Quickstart</a>&nbsp;&nbsp;&bull;&nbsp;&nbsp;
-    <a href="https://github.com/securyblack/oxi-pulse#installation">Install</a>&nbsp;&nbsp;&bull;&nbsp;&nbsp;
-    <a href="https://github.com/securyblack/oxi-pulse#standalone-local-compilation--execution-cargo-run--zero-lock-in">Local Mode</a>&nbsp;&nbsp;&bull;&nbsp;&nbsp;
-    <a href=".github/SECURITY.md">Security Policy</a>&nbsp;&nbsp;&bull;&nbsp;&nbsp;
-    <a href="https://securyblack.com">SecuryBlack Cloud</a>
-  </strong>
-</p>
+- **Vendor-neutral.** Standard OTLP. No account needed, no hardcoded backend.
+- **Offline buffer.** Keeps up to 72 h of snapshots (default) while the backend is unreachable and flushes them when it comes back.
+- **Self-updating, optionally.** Checks GitHub Releases daily; turn it off with `auto_update = false`.
+- **Private by default.** With a non-SecuryBlack endpoint it talks only to your endpoint and GitHub. See [what it sends](#what-oxipulse-sends-and-where).
 
 ---
 
-## What is OxiPulse?
+## Quickstart: your own Prometheus + Grafana
 
-**OxiPulse** is an ultralight, open source server monitoring agent written in [Rust][urls.rust].
-It collects your server's vital signs — CPU, RAM, disk, and network — and ships them
-to any [OpenTelemetry][urls.otel]-compatible backend using the OTLP protocol.
+On the machine that will store the metrics (needs Docker):
 
-OxiPulse is designed to be the monitoring agent you actually want to run:
+```bash
+git clone https://github.com/securyblack/oxi-pulse && cd oxi-pulse/examples/prometheus-grafana
+docker compose up -d
+```
 
-- **No bloat.** A single static binary with a focus on efficient resource use.
-- **No lock-in.** Send metrics to [SecuryBlack Cloud][urls.securyblack], your own self-hosted
-  collector, Grafana Cloud, Datadog, or any OTLP endpoint — your choice.
-- **No downtime on updates.** The agent updates itself daily from GitHub Releases
-  and restarts cleanly through your service manager.
-- **Buffered delivery.** An offline buffer handles temporary network outages and flushes
-  automatically when the connection is restored.
+On every Linux host you want to monitor:
 
-OxiPulse is maintained by [SecuryBlack][urls.securyblack]'s engineering team as a
-fully open source project under the Apache 2.0 license.
+```bash
+curl -fsSL https://install.oxipulse.dev | sudo bash -s -- --endpoint http://<collector-host>:4317
+```
 
-### Principles
+Open Grafana on `http://<collector-host>:3000` and query `system_cpu_usage_percent`. More queries in [examples/prometheus-grafana](examples/prometheus-grafana/README.md).
 
-- **Ultralight** — Built in [Rust][urls.rust]. Designed to run invisibly on every server,
-  from a Raspberry Pi to a 256-core bare metal machine.
-- **Standard protocol** — Uses [OpenTelemetry OTLP][urls.otel], the industry standard for
-  telemetry. No proprietary wire formats.
-- **Vendor-neutral** — The agent has no hardcoded backend. Point it anywhere.
-- **Resilient** — Exponential backoff and an in-memory ring buffer buffer telemetry during temporary outages within the configured limits.
-- **Self-updating** — Automatically pulls the correct binary for your platform
-  from GitHub Releases once per day.
-
-### Use cases
-
-- Monitor bare-metal servers, VMs, and cloud instances from a single pane of glass.
-- Send metrics to your existing OpenTelemetry stack (Grafana, Jaeger, Datadog, etc.).
-- Use [SecuryBlack Cloud][urls.securyblack] for a zero-config hosted monitoring experience.
-- Embed OxiPulse into your own product as a lightweight telemetry foundation.
+Prefer to read the installer first? It is [scripts/install.sh](scripts/install.sh) (and [install.ps1](scripts/install.ps1) for Windows). You can also download the binary from [Releases][urls.releases] and run it yourself.
 
 ---
 
-## Quickstart
+## Where to send metrics
 
-### Linux — one command
-
-```bash
-curl -fsSL https://install.oxipulse.dev | sudo bash
-```
-
-The script will ask for your OTLP endpoint and auth token, then install the agent
-as a **systemd service** with automatic restart.
-
-### Windows — one command (PowerShell as Administrator)
-
-```powershell
-irm https://install.oxipulse.dev | iex
-```
-
-The script installs the agent as a **Windows Service** with automatic restart on failure.
-
-### Using SecuryBlack Cloud
-
-Sign in to [securyblack.com][urls.securyblack_app], add a server, and copy the
-pre-filled install command — your endpoint and token are already included:
-
-```bash
-# Linux
-curl -fsSL https://install.oxipulse.dev | sudo bash
-
-# Windows
-irm https://install.oxipulse.dev | iex
-```
-
-### Autonomous Local Mode (Zero Vendor Lock-In)
-
-Want to test OxiPulse before connecting to any cloud SaaS? OxiPulse speaks standard **OpenTelemetry OTLP over gRPC** natively. You can run it completely isolated and point it to any generic OTLP collector, Jaeger, Grafana Tempo, or SigNoz:
-
-```bash
-# 1. (Optional) Run a local Jaeger instance with OTLP gRPC receiver enabled:
-docker run -d --name jaeger \
-  -e COLLECTOR_OTLP_ENABLED=true \
-  -p 4317:4317 \
-  -p 16686:16686 \
-  jaegertracing/all-in-one:latest
-
-# 2. Run OxiPulse from source pointing directly to your local collector:
-OXIPULSE_ENDPOINT=http://localhost:4317 cargo run
-
-# 3. Verify incoming server metrics in your collector UI:
-# Open http://localhost:16686
-```
-
-No SecuryBlack account, registration, or external cloud dependency required. You maintain 100% control over your telemetry.
+| Backend | How |
+|---|---|
+| **Your own stack** (OTel Collector, Prometheus, Grafana, VictoriaMetrics, SigNoz, OpenObserve, Uptrace…) | Point `endpoint` at its OTLP/gRPC receiver (usually port 4317). Set `token` only if it requires a Bearer token |
+| **An OTLP vendor** | Their OTLP/gRPC endpoint and API token |
+| **[SecuryBlack Cloud][urls.securyblack]** | Hosted dashboards, alerts and security audit for your servers, with a free Hobby plan for one server. Add a server in the [panel][urls.securyblack_app] and copy the install command, which already includes endpoint and token |
 
 ---
 
 ## Installation
 
-### Pre-built binaries
+### Linux
 
-Download the latest binary for your platform from the [Releases page][urls.releases].
+```bash
+curl -fsSL https://install.oxipulse.dev | sudo bash -s -- --endpoint <OTLP endpoint> [--token <TOKEN>] [--no-auto-update]
+```
+
+Without arguments the script asks interactively. It downloads the release for your architecture, verifies its SHA-256 checksum, writes `/etc/oxipulse/config.toml` and installs a systemd service.
+
+### Windows (PowerShell as Administrator)
+
+```powershell
+$script = irm https://install.oxipulse.dev
+& ([scriptblock]::Create($script)) -Endpoint "https://collector.example.com:4317"
+```
+
+`-Token "<TOKEN>"` and `-NoAutoUpdate` are optional.
+
+### Pre-built binaries
 
 | Platform          | Asset                                        |
 |-------------------|----------------------------------------------|
@@ -148,86 +79,88 @@ Download the latest binary for your platform from the [Releases page][urls.relea
 | Linux arm64       | `oxipulse-aarch64-unknown-linux-gnu.tar.gz`  |
 | Windows x86\_64   | `oxipulse-x86_64-pc-windows-msvc.zip`        |
 
+Each asset has a `.sha256` file next to it on the [Releases page][urls.releases].
+
 ### Build from source
 
 ```bash
-git clone https://github.com/securyblack/oxi-pulse
-cd oxi-pulse
+git clone https://github.com/securyblack/oxi-pulse && cd oxi-pulse
 cargo build --release
 ```
 
-Requires Rust 1.85+ (Edition 2024).
-
+Requires Rust 1.85+ (edition 2024).
 
 ---
 
 ## Configuration
 
-OxiPulse is configured via `/etc/oxipulse/config.toml` (Linux) or
-`C:\ProgramData\oxipulse\config.toml` (Windows), with environment variables
-as overrides.
+`/etc/oxipulse/config.toml` on Linux, `C:\ProgramData\oxipulse\config.toml` on Windows. Environment variables override the file.
 
 ```toml
-# Required
-endpoint = "https://ingest.example.com:4317"   # Any OTLP/gRPC endpoint
-token    = "your-auth-token"                    # Sent as Authorization: Bearer header
+endpoint = "http://collector.example.com:4317"   # required, OTLP/gRPC
+token    = ""                                    # optional, sent as Authorization: Bearer
 
-# Optional
-interval_secs   = 30    # Collection and export interval (default: 30s)
-buffer_max_size = 8640  # Max buffered snapshots when offline (default: 8640 = 72h at 30s)
+interval_secs   = 30      # collection and export interval
+buffer_max_size = 8640    # snapshots kept while offline (8640 x 30 s = 72 h)
+auto_update     = true    # daily self-update from GitHub Releases
+latency_targets = []      # host:port list; default is your endpoint and 1.1.1.1:53
+# telemetry_enabled = false  # usage ping to SecuryBlack, see below
 ```
 
-### Environment variable overrides
-
-| Variable                 | Description                     |
-|--------------------------|---------------------------------|
-| `OXIPULSE_ENDPOINT`      | OTLP collector endpoint URL     |
-| `OXIPULSE_TOKEN`         | Auth token                      |
-| `OXIPULSE_INTERVAL_SECS` | Collection interval in seconds  |
-| `OXIPULSE_BUFFER_MAX`    | Max offline buffer size         |
-
-### Logging
-
-Control log verbosity via the `RUST_LOG` environment variable:
-
-```bash
-RUST_LOG=debug oxipulse        # Verbose
-RUST_LOG=warn  oxipulse        # Warnings and errors only
-```
+| Variable | Setting |
+|---|---|
+| `OXIPULSE_ENDPOINT` | `endpoint` |
+| `OXIPULSE_TOKEN` | `token` |
+| `OXIPULSE_INTERVAL_SECS` | `interval_secs` |
+| `OXIPULSE_BUFFER_MAX` | `buffer_max_size` |
+| `OXIPULSE_AUTO_UPDATE` | `auto_update` (`true`/`false`) |
+| `OXIPULSE_LATENCY_TARGETS` | `latency_targets` (comma-separated) |
+| `OXIPULSE_TELEMETRY` | `telemetry_enabled` (`true`/`false`) |
+| `RUST_LOG` | log level (`info` by default) |
 
 ---
 
-## Metrics collected
+## Metrics
 
-| Metric                     | OTel Instrument     | Unit |
-|----------------------------|---------------------|------|
-| `system.cpu.usage`         | Gauge               | %    |
-| `system.memory.used`       | Gauge               | By   |
-| `system.memory.total`      | Gauge               | By   |
-| `system.disk.used`         | Gauge               | By   |
-| `system.disk.total`        | Gauge               | By   |
-| `system.network.received`  | Counter (delta)     | By   |
-| `system.network.transmitted` | Counter (delta)   | By   |
+All metrics are gauges. Names as exported over OTLP, and as they appear in Prometheus through the OTel Collector's Prometheus exporter:
 
-All metrics use standard [OpenTelemetry semantic conventions][urls.otel_semconv].
+| OTLP name | Prometheus name | Unit | Notes |
+|---|---|---|---|
+| `system.cpu.usage` | `system_cpu_usage_percent` | % | All cores, 0-100 |
+| `system.cpu.count` | `system_cpu_count` | cores | Logical cores |
+| `system.cpu.load_average.1m` / `5m` / `15m` | `system_cpu_load_average_1m_ratio` … | — | 0 on Windows |
+| `system.memory.used` / `total` | `system_memory_used_bytes` / `system_memory_total_bytes` | bytes | |
+| `system.memory.swap.used` / `total` | `system_memory_swap_used_bytes` / `system_memory_swap_total_bytes` | bytes | |
+| `system.disk.used` / `total` | `system_disk_used_bytes` / `system_disk_total_bytes` | bytes | One series per disk (`disk.name` attribute) |
+| `system.network.receive` / `transmit` | `system_network_receive_bytes_per_second` … | bytes/s | All interfaces |
+| `system.network.latency` | `system_network_latency_milliseconds` | ms | TCP connect time per latency target |
+| `system.uptime` | `system_uptime_seconds` | s | |
+
+Resource attributes on every series: `host.name`, `host.os.name`, `host.os.version`, `host.kernel.version`, `host.cpu.model`, `service.name`, `service.version`.
+
+Metric names do not follow the OpenTelemetry semantic conventions for system metrics yet (`system.cpu.utilization`, `system.memory.usage` with a `state` attribute, …). Aligning them is planned and will be announced as a breaking change.
 
 ---
 
-## Comparison
+## What OxiPulse sends, and where
 
-| Feature                      | **OxiPulse**  | Telegraf  | Prometheus Node Exporter | Datadog Agent | New Relic Agent |
-|------------------------------|:-------------:|:---------:|:------------------------:|:-------------:|:---------------:|
-| Written in Rust              | **✓**         |           |                          |               |                 |
-| Single static binary         | **✓**         | ✓         | ✓                        |               |                 |
-| OpenTelemetry OTLP native    | **✓**         | ⚠         |                          | ⚠             |                 |
-| Vendor-neutral               | **✓**         | ✓         | ✓                        |               |                 |
-| Self-updating                | **✓**         |           |                          | ✓             | ✓               |
-| Offline buffer               | **✓**         | ⚠         |                          | ✓             | ✓               |
-| Memory-safe                  | **✓**         |           |                          |               |                 |
-| Open source (Apache 2.0)     | **✓**         | ✓         | ✓                        |               |                 |
-| <10 MB binary                | **✓**         |           | ✓                        |               |                 |
+| Destination | When | What |
+|---|---|---|
+| Your `endpoint` | Every `interval_secs` | The metrics above. Your `token`, if set |
+| GitHub Releases | Once a day, unless `auto_update = false` | Latest-release check, and the new binary if there is one |
+| Latency targets | Every interval | A TCP connect, to measure latency |
+| `api.securyblack.com` | **Only** if the endpoint is SecuryBlack Cloud, or you set `telemetry_enabled = true` | Agent version, OS, arch, interval, uptime, exported-metric count, buffer usage and last error kind. No metric values |
 
-⚠ = Partial or requires additional configuration
+With any other endpoint and default settings, OxiPulse never contacts SecuryBlack and your token only goes to your own endpoint. Details, including privileges, in [SECURITY.md](SECURITY.md).
+
+---
+
+## Known limitations
+
+- The Linux service runs as **root** (the self-updater needs to replace the binary). See [SECURITY.md](SECURITY.md) to run it unprivileged with `auto_update = false`.
+- The self-updater downloads over HTTPS but does not verify checksums or signatures yet; the installer does.
+- No macOS build, no per-container metrics and no Docker image yet.
+- Metric names are not OTel semantic conventions yet (see above).
 
 ---
 
@@ -236,34 +169,25 @@ All metrics use standard [OpenTelemetry semantic conventions][urls.otel_semconv]
 ### Linux (systemd)
 
 ```bash
-# Status
 systemctl status oxipulse
-
-# Live logs
 journalctl -fu oxipulse
-
-# Restart
 systemctl restart oxipulse
 
 # Uninstall
-systemctl disable --now oxipulse && rm /usr/local/bin/oxipulse /etc/systemd/system/oxipulse.service
+systemctl disable --now oxipulse && rm -rf /usr/local/bin/oxipulse /etc/systemd/system/oxipulse.service /etc/oxipulse
 ```
 
 ### Windows (PowerShell)
 
 ```powershell
-# Status
 Get-Service OxiPulse
-
-# Logs (Event Viewer)
-Get-EventLog -LogName Application -Source OxiPulse -Newest 50
-
-# Restart
 Restart-Service OxiPulse
 
 # Uninstall
 Stop-Service OxiPulse; sc.exe delete OxiPulse
 ```
+
+Logs are written next to the config file (`/etc/oxipulse`, `C:\ProgramData\oxipulse`).
 
 ---
 
@@ -281,8 +205,10 @@ Please read our [Code of Conduct][urls.code_of_conduct] before contributing.
 ### Development
 
 ```bash
-# Run with a local OTLP collector (e.g. otelcol)
-OXIPULSE_ENDPOINT=http://localhost:4317 OXIPULSE_TOKEN=dev cargo run
+# Run against a local OTLP collector (e.g. examples/prometheus-grafana).
+# Logs go next to the config (/etc/oxipulse or C:\ProgramData\oxipulse),
+# so the process needs write access there.
+OXIPULSE_ENDPOINT=http://localhost:4317 OXIPULSE_AUTO_UPDATE=false cargo run
 
 # Build for all platforms (requires WSL2 on Windows for Linux targets)
 cargo build --release --target x86_64-unknown-linux-gnu
@@ -297,36 +223,24 @@ OxiPulse follows [Semantic Versioning][urls.semver]. Every push to a `v*` tag
 triggers the CI/CD pipeline, which cross-compiles binaries for all supported
 platforms and publishes them to [GitHub Releases][urls.releases] with SHA256 checksums.
 
-The agent's self-update mechanism checks for new releases every 24 hours and
-applies updates automatically. No manual intervention required.
+Unless `auto_update = false`, the agent checks for a new release every 24 hours
+and applies it, restarting through the service manager.
 
 ---
 
-## Security & Sudo / Root Privileges
+## Other SecuryBlack agents
 
-Engineers rightfully scrutinize tools requesting `sudo`. OxiPulse is designed with strict least-privilege principles:
-- **Zero Root at Runtime**: Once installed, the systemd daemon drops root and runs as the isolated, unprivileged `oxipulse:oxipulse` system user.
-- **Zero Remote Code Execution**: OxiPulse is strictly a read-only observability agent. It contains no shell spawning (`/bin/sh`), dynamic eval, or remote commands.
-- **Read-Only Inspection**: Telemetry metrics are gathered purely from kernel pseudo-filesystems (`/proc` and `/sys`). It never modifies system configurations.
-
-See our full [.github/SECURITY.md](.github/SECURITY.md) for vulnerability reporting and detailed privileges specifications.
-**Do not open a public GitHub issue for security vulnerabilities.** Report privately to [security@securyblack.com](mailto:security@securyblack.com).
-
----
-
-## 🌐 SecuryBlack Open Source Ecosystem
-
-OxiPulse is the telemetry cornerstone of the SecuryBlack modular agent suite:
+OxiPulse is maintained by [SecuryBlack](https://securyblack.com), which also publishes these Apache-2.0 agents:
 
 | Agent | Core Focus | Official Website | Repository |
 | :--- | :--- | :--- | :--- |
 | **OxiPulse** | Server telemetry and OTLP metrics | [oxipulse.dev](https://oxipulse.dev) | [securyblack/oxi-pulse](https://github.com/securyblack/oxi-pulse) |
-| **FerroSentry** | Lightweight EDR, auditd, brute-force mitigation & firewall | [ferrosentry.dev](https://ferrosentry.dev) | [securyblack/ferro-sentry](https://github.com/securyblack/ferro-sentry) |
+| **FerroSentry** | Server security audit | [ferrosentry.dev](https://ferrosentry.dev) | [securyblack/ferro-sentry](https://github.com/securyblack/ferro-sentry) |
 | **CupraFlow** | Networking/HA development (not operationally verified) | [cupraflow.dev](https://cupraflow.dev) | [securyblack/cupra-flow](https://github.com/securyblack/cupra-flow) |
 | **CromoForge** | Docker containers, logs & PostgreSQL management | [cromoforge.dev](https://cromoforge.dev) | [securyblack/cromo-forge](https://github.com/securyblack/cromo-forge) |
 | **TitanVault** | Streaming backups (restore workflow not verified) | [titanvault.dev](https://titanvault.dev) | [securyblack/titan-vault](https://github.com/securyblack/titan-vault) |
 
-All agents can be centrally managed with unified observability by connecting them to [SecuryBlack Cloud](https://securyblack.com).
+All of them can report to [SecuryBlack Cloud](https://securyblack.com).
 
 ---
 
@@ -339,7 +253,7 @@ All dependencies are compatible with Apache 2.0 (MIT, Apache-2.0, or BSD license
 ---
 
 <p align="center">
-  Developed with care by <strong><a href="https://securyblack.com">SecuryBlack</a></strong>
+  Maintained by <strong><a href="https://securyblack.com">SecuryBlack</a></strong>
   &nbsp;&mdash;&nbsp;
   <a href="https://github.com/securyblack/oxi-pulse/security/policy">Security Policy</a>
   &nbsp;&mdash;&nbsp;
