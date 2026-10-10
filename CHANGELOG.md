@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-10-10
+
 ### Added
 - **Packages**: `.deb` and `.rpm` for amd64 and arm64 in every release. They install a systemd service that starts once `endpoint` is set; self-update is off in packaged installs.
 
@@ -144,7 +146,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Self-updating mechanism via GitHub Releases.
 - Offline buffer with exponential backoff for network outages.
 
-[Unreleased]: https://github.com/SecuryBlack/oxi-pulse/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/SecuryBlack/oxi-pulse/compare/v0.4.2...HEAD
+[0.4.2]: https://github.com/SecuryBlack/oxi-pulse/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/SecuryBlack/oxi-pulse/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/SecuryBlack/oxi-pulse/compare/v0.3.14...v0.4.0
 [0.3.14]: https://github.com/SecuryBlack/oxi-pulse/compare/v0.3.13...v0.3.14
