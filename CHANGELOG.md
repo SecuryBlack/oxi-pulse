@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-10
+
 ### Changed
 - **Breaking — metric names**: Metrics follow the OpenTelemetry semantic conventions for system metrics, like the OTel Collector hostmetrics receiver (#13). Update queries and dashboards:
 
@@ -128,7 +130,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Self-updating mechanism via GitHub Releases.
 - Offline buffer with exponential backoff for network outages.
 
-[Unreleased]: https://github.com/SecuryBlack/oxi-pulse/compare/v0.3.13...HEAD
+[Unreleased]: https://github.com/SecuryBlack/oxi-pulse/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/SecuryBlack/oxi-pulse/compare/v0.3.14...v0.4.0
+[0.3.14]: https://github.com/SecuryBlack/oxi-pulse/compare/v0.3.13...v0.3.14
 [0.3.13]: https://github.com/SecuryBlack/oxi-pulse/compare/v0.3.12...v0.3.13
 [0.3.12]: https://github.com/SecuryBlack/oxi-pulse/compare/v0.3.11...v0.3.12
 [0.3.11]: https://github.com/SecuryBlack/oxi-pulse/compare/v0.3.10...v0.3.11
