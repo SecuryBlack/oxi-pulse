@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - 'v*'
+  # Rebuild packages and image for an existing release (e.g. after adding a format).
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag, e.g. v0.4.1
+        required: true
 
 permissions:
   contents: write
@@ -11,6 +17,7 @@ permissions:
 
 jobs:
   release:
+    if: github.event_name == 'push'
     uses: securyblack/sb-agent-core/.github/workflows/release.yml@master
     with:
       binary-name: oxipulse
@@ -26,7 +33,10 @@ jobs:
   # .deb/.rpm packages and the Docker image, from the Linux binaries just published.
   linux-packages:
     needs: release
+    if: ${{ !cancelled() && (needs.release.result == 'success' || needs.release.result == 'skipped') }}
     runs-on: ubuntu-latest
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
     steps:
       - uses: actions/checkout@v4
 
@@ -37,9 +47,9 @@ jobs:
           for pair in amd64:x86_64 arm64:aarch64; do
             arch=${pair%%:*}; target=${pair##*:}
             mkdir -p "dist/$arch"
-            gh release download "$GITHUB_REF_NAME" -p "oxipulse-${target}-unknown-linux-gnu.tar.gz" -O - | tar xz -C "dist/$arch"
+            gh release download "$TAG" -p "oxipulse-${target}-unknown-linux-gnu.tar.gz" -O - | tar xz -C "dist/$arch"
           done
-          echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+          echo "VERSION=${TAG#v}" >> "$GITHUB_ENV"
 
       - name: Build and upload .deb and .rpm
         env:
@@ -55,7 +65,7 @@ jobs:
           done
           ls -l pkg
           (cd pkg && sha256sum * > SHA256SUMS-packages)
-          gh release upload "$GITHUB_REF_NAME" pkg/*
+          gh release upload "$TAG" pkg/* --clobber
 
       - uses: docker/setup-buildx-action@v3
 
