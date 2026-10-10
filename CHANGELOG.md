@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-10-10
+
 ### Added
 - **Docker**: Multi-arch image `ghcr.io/securyblack/oxipulse` (amd64, arm64), distroless, non-root, about 33 MB. Run it with `--network host`, `-v /:/hostfs:ro` and `OXIPULSE_HOST_ROOT=/hostfs`; it then reports the host's disks, OS and hostname.
 - **Config**: `OXIPULSE_HOST_ROOT` for running in a container.
@@ -139,7 +141,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Self-updating mechanism via GitHub Releases.
 - Offline buffer with exponential backoff for network outages.
 
-[Unreleased]: https://github.com/SecuryBlack/oxi-pulse/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/SecuryBlack/oxi-pulse/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/SecuryBlack/oxi-pulse/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/SecuryBlack/oxi-pulse/compare/v0.3.14...v0.4.0
 [0.3.14]: https://github.com/SecuryBlack/oxi-pulse/compare/v0.3.13...v0.3.14
 [0.3.13]: https://github.com/SecuryBlack/oxi-pulse/compare/v0.3.12...v0.3.13
