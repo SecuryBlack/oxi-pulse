@@ -12,8 +12,18 @@ pub struct LatencyMetric {
 #[derive(Debug)]
 pub struct DiskInfo {
     pub name: String,
+    pub mount_point: String,
+    pub fs_type: String,
     pub total_bytes: u64,
     pub used_bytes: u64,
+}
+
+/// Bytes moved by one network interface since the previous collection.
+#[derive(Debug)]
+pub struct NetIo {
+    pub device: String,
+    pub received: u64,
+    pub transmitted: u64,
 }
 
 #[derive(Debug)]
@@ -31,10 +41,7 @@ pub struct Metrics {
     pub swap_total_bytes: u64,
     pub swap_used_bytes: u64,
     pub disks: Vec<DiskInfo>,
-    /// Network receive throughput in bytes per second.
-    pub net_bps_in: f64,
-    /// Network transmit throughput in bytes per second.
-    pub net_bps_out: f64,
+    pub networks: Vec<NetIo>,
     /// Network latency metrics to various targets in milliseconds.
     pub latencies: Vec<LatencyMetric>,
 }
@@ -42,9 +49,6 @@ pub struct Metrics {
 pub struct Collector {
     sys: System,
     networks: Networks,
-    last_collect: Option<Instant>,
-    last_net_bytes_in: u64,
-    last_net_bytes_out: u64,
 }
 
 impl Collector {
@@ -52,9 +56,6 @@ impl Collector {
         Self {
             sys: System::new_all(),
             networks: Networks::new_with_refreshed_list(),
-            last_collect: None,
-            last_net_bytes_in: 0,
-            last_net_bytes_out: 0,
         }
     }
 
@@ -105,41 +106,25 @@ impl Collector {
                 };
                 DiskInfo {
                     name,
+                    mount_point: d.mount_point().to_string_lossy().to_string(),
+                    fs_type: d.file_system().to_string_lossy().to_string(),
                     total_bytes: d.total_space(),
                     used_bytes: d.total_space().saturating_sub(d.available_space()),
                 }
             })
             .collect();
 
-        // Network — aggregate all interfaces and compute throughput
+        // Network — bytes per interface since the previous refresh
         self.networks.refresh(true);
-        let raw_bytes_in: u64 = self.networks.values().map(|n| n.received()).sum();
-        let raw_bytes_out: u64 = self.networks.values().map(|n| n.transmitted()).sum();
-
-        let now = Instant::now();
-        let (net_bps_in, net_bps_out) = match self.last_collect {
-            Some(last) => {
-                let elapsed_secs = last.elapsed().as_secs_f64();
-                if elapsed_secs > 0.0 {
-                    let delta_in = raw_bytes_in.saturating_sub(self.last_net_bytes_in);
-                    let delta_out = raw_bytes_out.saturating_sub(self.last_net_bytes_out);
-                    (
-                        delta_in as f64 / elapsed_secs,
-                        delta_out as f64 / elapsed_secs,
-                    )
-                } else {
-                    (0.0, 0.0)
-                }
-            }
-            None => {
-                // First collection: no previous data to compare against.
-                (0.0, 0.0)
-            }
-        };
-
-        self.last_collect = Some(now);
-        self.last_net_bytes_in = raw_bytes_in;
-        self.last_net_bytes_out = raw_bytes_out;
+        let networks = self
+            .networks
+            .iter()
+            .map(|(device, n)| NetIo {
+                device: device.clone(),
+                received: n.received(),
+                transmitted: n.transmitted(),
+            })
+            .collect();
 
         // Measure latencies concurrently
         let mut ping_tasks = Vec::new();
@@ -180,8 +165,7 @@ impl Collector {
             swap_total_bytes,
             swap_used_bytes,
             disks: disk_infos,
-            net_bps_in,
-            net_bps_out,
+            networks,
             latencies,
         }
     }

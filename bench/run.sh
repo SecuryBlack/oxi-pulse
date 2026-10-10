@@ -58,7 +58,7 @@ measure "OxiPulse $(oxipulse --version | awk '{print $NF}')" "$(systemctl show -
 
 log "Checking metrics in Prometheus and the dashboard in Grafana"
 for _ in $(seq 1 24); do
-  curl -fsG localhost:9090/api/v1/query --data-urlencode 'query=count by (host_name) (system_cpu_usage_percent)' \
+  curl -fsG localhost:9090/api/v1/query --data-urlencode 'query=count by (host_name) (system_uptime_seconds)' \
     > "$OUT/prometheus.json"
   grep '"host_name"' "$OUT/prometheus.json" >/dev/null && break
   sleep 5

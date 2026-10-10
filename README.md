@@ -123,23 +123,24 @@ latency_targets = []      # host:port list; default is your endpoint and 1.1.1.1
 
 ## Metrics
 
-All metrics are gauges. Names as exported over OTLP, and as they appear in Prometheus through the OTel Collector's Prometheus exporter:
+Names follow the [OpenTelemetry semantic conventions for system metrics](https://opentelemetry.io/docs/specs/semconv/system/system-metrics/), the same ones the OTel Collector's hostmetrics receiver uses, so queries and dashboards work for both. Prometheus names are as they appear through the OTel Collector's Prometheus exporter:
 
-| OTLP name | Prometheus name | Unit | Notes |
+| OTLP name | Prometheus name | Unit | Attributes / notes |
 |---|---|---|---|
-| `system.cpu.usage` | `system_cpu_usage_percent` | % | All cores, 0-100 |
-| `system.cpu.count` | `system_cpu_count` | cores | Logical cores |
-| `system.cpu.load_average.1m` / `5m` / `15m` | `system_cpu_load_average_1m_ratio` … | — | 0 on Windows |
-| `system.memory.used` / `total` | `system_memory_used_bytes` / `system_memory_total_bytes` | bytes | |
-| `system.memory.swap.used` / `total` | `system_memory_swap_used_bytes` / `system_memory_swap_total_bytes` | bytes | |
-| `system.disk.used` / `total` | `system_disk_used_bytes` / `system_disk_total_bytes` | bytes | One series per disk (`disk.name` attribute) |
-| `system.network.receive` / `transmit` | `system_network_receive_bytes_per_second` … | bytes/s | All interfaces |
-| `system.network.latency` | `system_network_latency_milliseconds` | ms | TCP connect time per latency target |
+| `system.cpu.utilization` | `system_cpu_utilization_ratio` | 0-1 | All cores together |
+| `system.cpu.logical.count` | `system_cpu_logical_count` | CPUs | |
+| `system.cpu.load_average.1m` / `5m` / `15m` | `system_cpu_load_average_1m` … | | Not sent on Windows |
+| `system.memory.usage` | `system_memory_usage_bytes` | bytes | `state`: `used`, `free` |
+| `system.memory.limit` | `system_memory_limit_bytes` | bytes | Total memory |
+| `system.paging.usage` | `system_paging_usage_bytes` | bytes | Swap. `state`: `used`, `free`. Not sent without swap |
+| `system.filesystem.usage` | `system_filesystem_usage_bytes` | bytes | `device`, `mountpoint`, `type`, `state`: `used`, `free` |
+| `system.network.io` | `system_network_io_bytes_total` | bytes | Counter. `device`, `direction`: `receive`, `transmit`. Use `rate()` |
 | `system.uptime` | `system_uptime_seconds` | s | |
+| `system.network.latency` | `system_network_latency_milliseconds` | ms | OxiPulse only, no convention exists. TCP connect time per `target`, `status`: `success`, `failure` (value -1) |
 
 Resource attributes on every series: `host.name`, `host.os.name`, `host.os.version`, `host.kernel.version`, `host.cpu.model`, `service.name`, `service.version`.
 
-Metric names do not follow the OpenTelemetry semantic conventions for system metrics yet (`system.cpu.utilization`, `system.memory.usage` with a `state` attribute, …). Aligning them is planned and will be announced as a breaking change.
+Usage metrics are sent as gauges rather than the spec's UpDownCounter; in Prometheus the series are identical. Versions before 0.4.0 used other names (`system.cpu.usage`, `system.memory.used`, `system.disk.used`, …); see the [changelog](CHANGELOG.md).
 
 ---
 

@@ -18,11 +18,11 @@ To write your own panels, go to **Explore** and try:
 
 | What | PromQL |
 |---|---|
-| CPU % per host | `system_cpu_usage_percent` |
-| Memory used % | `100 * system_memory_used_bytes / system_memory_total_bytes` |
-| Disk used % (per mount) | `100 * system_disk_used_bytes / system_disk_total_bytes` |
-| Network in / out (bytes/s) | `system_network_receive_bytes_per_second`, `system_network_transmit_bytes_per_second` |
-| Load average | `system_cpu_load_average_1m_ratio` |
+| CPU % per host | `100 * system_cpu_utilization_ratio` |
+| Memory used % | `100 * system_memory_usage_bytes{state="used"} / ignoring(state) system_memory_limit_bytes` |
+| Disk used % (per mount) | `100 * system_filesystem_usage_bytes{state="used"} / ignoring(state) sum without(state) (system_filesystem_usage_bytes)` |
+| Network in / out (bytes/s) | `sum by (host_name, direction) (rate(system_network_io_bytes_total[2m]))` |
+| Load average | `system_cpu_load_average_1m` |
 | Uptime | `system_uptime_seconds` |
 
 Every series carries a `host_name` label, so you can filter or group by host.

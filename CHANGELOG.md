@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Breaking — metric names**: Metrics follow the OpenTelemetry semantic conventions for system metrics, like the OTel Collector hostmetrics receiver (#13). Update queries and dashboards:
+
+  | Before | Now |
+  |---|---|
+  | `system.cpu.usage` (%) | `system.cpu.utilization` (0-1) |
+  | `system.cpu.count` | `system.cpu.logical.count` |
+  | `system.memory.used` / `total` | `system.memory.usage{state=used}` / `system.memory.limit` |
+  | `system.memory.swap.used` / `total` | `system.paging.usage{state=used\|free}` |
+  | `system.disk.used` / `total` (`disk.name`) | `system.filesystem.usage{device, mountpoint, type, state=used\|free}` |
+  | `system.network.receive` / `transmit` (bytes/s gauges) | `system.network.io{device, direction}` (byte counter per interface; use `rate()`) |
+
+  `system.uptime`, `system.cpu.load_average.*` and `system.network.latency` keep their names; load average is no longer sent on Windows, where it was always 0. Network bytes recorded while offline are no longer lost, because the counter adds them on flush. SecuryBlack Cloud accepts both naming schemes.
+
 ### Added
 - **Examples**: Grafana dashboard "OxiPulse hosts" (`examples/prometheus-grafana/grafana/oxipulse-hosts.json`), provisioned as the home page of the Docker Compose example.
 - **Benchmark**: `bench/run.sh` and a manual GitHub Actions workflow that check the self-hosted example end to end on Linux and measure OxiPulse, node_exporter and the OTel Collector hostmetrics receiver.

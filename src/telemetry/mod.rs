@@ -1,6 +1,6 @@
 use opentelemetry::{
     KeyValue, global,
-    metrics::{Gauge, MeterProvider as _},
+    metrics::{Counter, Gauge, MeterProvider as _},
 };
 use opentelemetry_otlp::{MetricExporter, WithExportConfig, WithTonicConfig};
 use opentelemetry_sdk::{
@@ -13,21 +13,22 @@ use tonic::transport::ClientTlsConfig;
 
 use crate::metrics::Metrics;
 
+// Metric names follow the OpenTelemetry system semantic conventions, so the
+// same queries and dashboards work for OxiPulse and the Collector's hostmetrics
+// receiver. Usage metrics are gauges (the spec's UpDownCounter maps to the same
+// Prometheus series); system.network.latency has no semantic convention.
 pub struct Instruments {
     uptime: Gauge<u64>,
     cpu_count: Gauge<u64>,
-    cpu_usage: Gauge<f64>,
+    cpu_utilization: Gauge<f64>,
     load_avg_1m: Gauge<f64>,
     load_avg_5m: Gauge<f64>,
     load_avg_15m: Gauge<f64>,
-    ram_used: Gauge<u64>,
-    ram_total: Gauge<u64>,
-    swap_used: Gauge<u64>,
-    swap_total: Gauge<u64>,
-    disk_used: Gauge<u64>,
-    disk_total: Gauge<u64>,
-    net_bps_in: Gauge<f64>,
-    net_bps_out: Gauge<f64>,
+    memory_usage: Gauge<u64>,
+    memory_limit: Gauge<u64>,
+    paging_usage: Gauge<u64>,
+    filesystem_usage: Gauge<u64>,
+    network_io: Counter<u64>,
     net_latency: Gauge<f64>,
 }
 
@@ -114,77 +115,62 @@ pub fn init(
     let instruments = Instruments {
         uptime: meter
             .u64_gauge("system.uptime")
-            .with_description("System uptime in seconds")
+            .with_description("Time the system has been running")
             .with_unit("s")
             .build(),
         cpu_count: meter
-            .u64_gauge("system.cpu.count")
-            .with_description("Number of CPU logical cores")
-            .with_unit("{core}")
+            .u64_gauge("system.cpu.logical.count")
+            .with_description("Number of logical CPUs")
+            .with_unit("{cpu}")
             .build(),
-        cpu_usage: meter
-            .f64_gauge("system.cpu.usage")
-            .with_description("CPU usage percentage (0-100)")
-            .with_unit("%")
+        cpu_utilization: meter
+            .f64_gauge("system.cpu.utilization")
+            .with_description("CPU busy time as a fraction of all CPUs (0-1)")
+            .with_unit("1")
             .build(),
         load_avg_1m: meter
             .f64_gauge("system.cpu.load_average.1m")
-            .with_description("System load average over 1 minute")
-            .with_unit("1")
+            .with_description("Load average over 1 minute")
+            .with_unit("{thread}")
             .build(),
         load_avg_5m: meter
             .f64_gauge("system.cpu.load_average.5m")
-            .with_description("System load average over 5 minutes")
-            .with_unit("1")
+            .with_description("Load average over 5 minutes")
+            .with_unit("{thread}")
             .build(),
         load_avg_15m: meter
             .f64_gauge("system.cpu.load_average.15m")
-            .with_description("System load average over 15 minutes")
-            .with_unit("1")
+            .with_description("Load average over 15 minutes")
+            .with_unit("{thread}")
             .build(),
-        ram_used: meter
-            .u64_gauge("system.memory.used")
-            .with_description("Used RAM in bytes")
+        memory_usage: meter
+            .u64_gauge("system.memory.usage")
+            .with_description("Memory in use and free, by state")
             .with_unit("By")
             .build(),
-        ram_total: meter
-            .u64_gauge("system.memory.total")
-            .with_description("Total RAM in bytes")
+        memory_limit: meter
+            .u64_gauge("system.memory.limit")
+            .with_description("Total memory")
             .with_unit("By")
             .build(),
-        swap_used: meter
-            .u64_gauge("system.memory.swap.used")
-            .with_description("Used Swap space in bytes")
+        paging_usage: meter
+            .u64_gauge("system.paging.usage")
+            .with_description("Swap in use and free, by state")
             .with_unit("By")
             .build(),
-        swap_total: meter
-            .u64_gauge("system.memory.swap.total")
-            .with_description("Total Swap space in bytes")
+        filesystem_usage: meter
+            .u64_gauge("system.filesystem.usage")
+            .with_description("Filesystem space in use and free, by state")
             .with_unit("By")
             .build(),
-        disk_used: meter
-            .u64_gauge("system.disk.used")
-            .with_description("Used disk space in bytes")
+        network_io: meter
+            .u64_counter("system.network.io")
+            .with_description("Bytes received and transmitted, per interface")
             .with_unit("By")
-            .build(),
-        disk_total: meter
-            .u64_gauge("system.disk.total")
-            .with_description("Total disk space in bytes")
-            .with_unit("By")
-            .build(),
-        net_bps_in: meter
-            .f64_gauge("system.network.receive")
-            .with_description("Network receive throughput in bytes per second")
-            .with_unit("By/s")
-            .build(),
-        net_bps_out: meter
-            .f64_gauge("system.network.transmit")
-            .with_description("Network transmit throughput in bytes per second")
-            .with_unit("By/s")
             .build(),
         net_latency: meter
             .f64_gauge("system.network.latency")
-            .with_description("Network latency to target in milliseconds")
+            .with_description("TCP connect time to a target, -1 on failure")
             .with_unit("ms")
             .build(),
     };
@@ -195,24 +181,56 @@ pub fn init(
 /// Record a collected `Metrics` snapshot into the OTel instruments.
 pub fn record(instruments: &Instruments, m: &Metrics) {
     for disk in &m.disks {
-        let attrs: &[KeyValue] = &[KeyValue::new("disk.name", disk.name.clone())];
-        instruments.disk_used.record(disk.used_bytes, attrs);
-        instruments.disk_total.record(disk.total_bytes, attrs);
+        let free = disk.total_bytes.saturating_sub(disk.used_bytes);
+        for (state, value) in [("used", disk.used_bytes), ("free", free)] {
+            instruments.filesystem_usage.record(
+                value,
+                &[
+                    KeyValue::new("device", disk.name.clone()),
+                    KeyValue::new("mountpoint", disk.mount_point.clone()),
+                    KeyValue::new("type", disk.fs_type.clone()),
+                    KeyValue::new("state", state),
+                ],
+            );
+        }
+    }
+    for n in &m.networks {
+        for (direction, value) in [("receive", n.received), ("transmit", n.transmitted)] {
+            instruments.network_io.add(
+                value,
+                &[
+                    KeyValue::new("device", n.device.clone()),
+                    KeyValue::new("direction", direction),
+                ],
+            );
+        }
     }
     instruments.uptime.record(m.uptime_secs, &[]);
     instruments.cpu_count.record(m.cpu_count as u64, &[]);
     instruments
-        .cpu_usage
-        .record(m.cpu_usage_percent as f64, &[]);
-    instruments.load_avg_1m.record(m.load_avg_1m, &[]);
-    instruments.load_avg_5m.record(m.load_avg_5m, &[]);
-    instruments.load_avg_15m.record(m.load_avg_15m, &[]);
-    instruments.ram_used.record(m.ram_used_bytes, &[]);
-    instruments.ram_total.record(m.ram_total_bytes, &[]);
-    instruments.swap_used.record(m.swap_used_bytes, &[]);
-    instruments.swap_total.record(m.swap_total_bytes, &[]);
-    instruments.net_bps_in.record(m.net_bps_in, &[]);
-    instruments.net_bps_out.record(m.net_bps_out, &[]);
+        .cpu_utilization
+        .record(m.cpu_usage_percent as f64 / 100.0, &[]);
+    // sysinfo has no load average on Windows.
+    if !cfg!(windows) {
+        instruments.load_avg_1m.record(m.load_avg_1m, &[]);
+        instruments.load_avg_5m.record(m.load_avg_5m, &[]);
+        instruments.load_avg_15m.record(m.load_avg_15m, &[]);
+    }
+    let ram_free = m.ram_total_bytes.saturating_sub(m.ram_used_bytes);
+    for (state, value) in [("used", m.ram_used_bytes), ("free", ram_free)] {
+        instruments
+            .memory_usage
+            .record(value, &[KeyValue::new("state", state)]);
+    }
+    instruments.memory_limit.record(m.ram_total_bytes, &[]);
+    if m.swap_total_bytes > 0 {
+        let swap_free = m.swap_total_bytes.saturating_sub(m.swap_used_bytes);
+        for (state, value) in [("used", m.swap_used_bytes), ("free", swap_free)] {
+            instruments
+                .paging_usage
+                .record(value, &[KeyValue::new("state", state)]);
+        }
+    }
 
     for lat in &m.latencies {
         let attrs: &[KeyValue] = &[

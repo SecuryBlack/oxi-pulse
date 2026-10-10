@@ -172,8 +172,8 @@ async fn run(mut shutdown: tokio::sync::oneshot::Receiver<()>) {
                         ram_used_mb = m.ram_used_bytes / 1024 / 1024,
                         ram_total_mb = m.ram_total_bytes / 1024 / 1024,
                         disks = m.disks.iter().map(|d| format!("{}={:.1}%", d.name, d.used_bytes as f64 / d.total_bytes as f64 * 100.0)).collect::<Vec<_>>().join(", "),
-                        net_in_kbps = m.net_bps_in / 1024.0,
-                        net_out_kbps = m.net_bps_out / 1024.0,
+                        net_in_kb = m.networks.iter().map(|n| n.received).sum::<u64>() / 1024,
+                        net_out_kb = m.networks.iter().map(|n| n.transmitted).sum::<u64>() / 1024,
                         latencies = m.latencies.iter().map(|l| {
                             let val = l.latency_ms.map(|ms| format!("{:.1}ms", ms)).unwrap_or_else(|| "fail".to_string());
                             format!("{}={}", l.target, val)

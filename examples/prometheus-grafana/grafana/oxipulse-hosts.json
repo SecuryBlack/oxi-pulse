@@ -42,10 +42,10 @@
           "uid": "${datasource}"
         },
         "query": {
-          "query": "label_values(system_cpu_usage_percent, host_name)",
+          "query": "label_values(system_uptime_seconds, host_name)",
           "refId": "host"
         },
-        "definition": "label_values(system_cpu_usage_percent, host_name)",
+        "definition": "label_values(system_uptime_seconds, host_name)",
         "refresh": 2,
         "multi": true,
         "includeAll": true,
@@ -80,7 +80,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "max by (host_name, host_os_name) (system_cpu_usage_percent{host_name=~\"$host\"})",
+          "expr": "max by (host_name, host_os_name) (100 * system_cpu_utilization_ratio{host_name=~\"$host\"})",
           "legendFormat": "",
           "refId": "A",
           "instant": true,
@@ -92,7 +92,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "max by (host_name, host_os_name) (100 * system_memory_used_bytes{host_name=~\"$host\"} / system_memory_total_bytes{host_name=~\"$host\"})",
+          "expr": "max by (host_name, host_os_name) (100 * system_memory_usage_bytes{host_name=~\"$host\", state=\"used\"} / ignoring(state) system_memory_limit_bytes{host_name=~\"$host\"})",
           "legendFormat": "",
           "refId": "B",
           "instant": true,
@@ -104,7 +104,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "max by (host_name, host_os_name) (100 * system_disk_used_bytes{host_name=~\"$host\"} / system_disk_total_bytes{host_name=~\"$host\"})",
+          "expr": "max by (host_name, host_os_name) (100 * system_filesystem_usage_bytes{host_name=~\"$host\", state=\"used\"} / ignoring(state) sum without(state) (system_filesystem_usage_bytes{host_name=~\"$host\"}))",
           "legendFormat": "",
           "refId": "C",
           "instant": true,
@@ -116,7 +116,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "max by (host_name, host_os_name) (system_cpu_load_average_1m_ratio{host_name=~\"$host\"})",
+          "expr": "max by (host_name, host_os_name) (system_cpu_load_average_1m{host_name=~\"$host\"})",
           "legendFormat": "",
           "refId": "D",
           "instant": true,
@@ -373,7 +373,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "system_cpu_usage_percent{host_name=~\"$host\"}",
+          "expr": "100 * system_cpu_utilization_ratio{host_name=~\"$host\"}",
           "legendFormat": "{{host_name}}",
           "refId": "A"
         }
@@ -426,7 +426,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "100 * system_memory_used_bytes{host_name=~\"$host\"} / system_memory_total_bytes{host_name=~\"$host\"}",
+          "expr": "100 * system_memory_usage_bytes{host_name=~\"$host\", state=\"used\"} / ignoring(state) system_memory_limit_bytes{host_name=~\"$host\"}",
           "legendFormat": "{{host_name}}",
           "refId": "A"
         }
@@ -479,8 +479,8 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "100 * system_disk_used_bytes{host_name=~\"$host\"} / system_disk_total_bytes{host_name=~\"$host\"}",
-          "legendFormat": "{{host_name}} {{disk_name}}",
+          "expr": "100 * system_filesystem_usage_bytes{host_name=~\"$host\", state=\"used\"} / ignoring(state) sum without(state) (system_filesystem_usage_bytes{host_name=~\"$host\"})",
+          "legendFormat": "{{host_name}} {{mountpoint}}",
           "refId": "A"
         }
       ],
@@ -532,7 +532,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "system_memory_swap_used_bytes{host_name=~\"$host\"}",
+          "expr": "system_paging_usage_bytes{host_name=~\"$host\", state=\"used\"}",
           "legendFormat": "{{host_name}}",
           "refId": "A"
         }
@@ -583,7 +583,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "system_network_receive_bytes_per_second{host_name=~\"$host\"}",
+          "expr": "sum by (host_name) (rate(system_network_io_bytes_total{host_name=~\"$host\", direction=\"receive\"}[$__rate_interval]))",
           "legendFormat": "{{host_name}} in",
           "refId": "A"
         },
@@ -592,7 +592,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "-system_network_transmit_bytes_per_second{host_name=~\"$host\"}",
+          "expr": "-sum by (host_name) (rate(system_network_io_bytes_total{host_name=~\"$host\", direction=\"transmit\"}[$__rate_interval]))",
           "legendFormat": "{{host_name}} out",
           "refId": "B"
         }
@@ -643,7 +643,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "system_cpu_load_average_1m_ratio{host_name=~\"$host\"}",
+          "expr": "system_cpu_load_average_1m{host_name=~\"$host\"}",
           "legendFormat": "{{host_name}} 1m",
           "refId": "A"
         },
@@ -652,7 +652,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "system_cpu_load_average_5m_ratio{host_name=~\"$host\"}",
+          "expr": "system_cpu_load_average_5m{host_name=~\"$host\"}",
           "legendFormat": "{{host_name}} 5m",
           "refId": "B"
         },
@@ -661,7 +661,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "system_cpu_load_average_15m_ratio{host_name=~\"$host\"}",
+          "expr": "system_cpu_load_average_15m{host_name=~\"$host\"}",
           "legendFormat": "{{host_name}} 15m",
           "refId": "C"
         }
