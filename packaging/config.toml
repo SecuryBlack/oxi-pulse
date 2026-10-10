@@ -1,0 +1,12 @@
+# OxiPulse configuration. Set endpoint, then: sudo systemctl enable --now oxipulse
+# Do not share this file if it contains a token.
+# Options: https://github.com/securyblack/oxi-pulse#configuration
+
+# OTLP/gRPC receiver, e.g. "http://collector.example.com:4317"
+endpoint = ""
+# Bearer token, only if your backend needs one
+token = ""
+interval_secs = 30
+buffer_max_size = 8640
+# Updates come from the package manager, not from the agent itself
+auto_update = false

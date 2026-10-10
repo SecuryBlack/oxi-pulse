@@ -1,0 +1,31 @@
+# .deb and .rpm packages, built by the release workflow from the published
+# Linux binaries. With the binary for ARCH at dist/oxipulse:
+#   VERSION=0.4.2 ARCH=amd64|arm64 nfpm package -f packaging/nfpm.yaml -p deb|rpm
+name: oxipulse
+version: ${VERSION}
+arch: ${ARCH}
+platform: linux
+maintainer: SecuryBlack <security@securyblack.com>
+description: Lightweight host metrics agent that sends OpenTelemetry (OTLP) metrics.
+homepage: https://oxipulse.dev
+license: Apache-2.0
+contents:
+  - src: dist/oxipulse
+    dst: /usr/bin/oxipulse
+    file_info:
+      mode: 0755
+  - src: packaging/oxipulse.service
+    dst: /lib/systemd/system/oxipulse.service
+    packager: deb
+  - src: packaging/oxipulse.service
+    dst: /usr/lib/systemd/system/oxipulse.service
+    packager: rpm
+  - src: packaging/config.toml
+    dst: /etc/oxipulse/config.toml
+    type: config|noreplace
+    file_info:
+      mode: 0600
+scripts:
+  postinstall: packaging/postinstall.sh
+  preremove: packaging/preremove.sh
+  postremove: packaging/postremove.sh

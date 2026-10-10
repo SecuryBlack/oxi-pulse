@@ -23,7 +23,8 @@ jobs:
           {"target":"x86_64-pc-windows-msvc","os":"windows-latest","archive_ext":"zip","cross":false}
         ]
 
-  docker:
+  # .deb/.rpm packages and the Docker image, from the Linux binaries just published.
+  linux-packages:
     needs: release
     runs-on: ubuntu-latest
     steps:
@@ -39,6 +40,22 @@ jobs:
             gh release download "$GITHUB_REF_NAME" -p "oxipulse-${target}-unknown-linux-gnu.tar.gz" -O - | tar xz -C "dist/$arch"
           done
           echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+
+      - name: Build and upload .deb and .rpm
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          curl -fsSL https://github.com/goreleaser/nfpm/releases/download/v2.47.0/nfpm_2.47.0_Linux_x86_64.tar.gz | tar xz -C "$RUNNER_TEMP" nfpm
+          mkdir -p pkg
+          for arch in amd64 arm64; do
+            cp "dist/$arch/oxipulse" dist/oxipulse
+            for format in deb rpm; do
+              ARCH=$arch "$RUNNER_TEMP/nfpm" package -f packaging/nfpm.yaml -p $format -t pkg/
+            done
+          done
+          ls -l pkg
+          (cd pkg && sha256sum * > SHA256SUMS-packages)
+          gh release upload "$GITHUB_REF_NAME" pkg/*
 
       - uses: docker/setup-buildx-action@v3
 

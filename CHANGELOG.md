@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Packages**: `.deb` and `.rpm` for amd64 and arm64 in every release. They install a systemd service that starts once `endpoint` is set; self-update is off in packaged installs.
+
 ## [0.4.1] - 2026-10-10
 
 ### Added

@@ -30,6 +30,7 @@ target
 
 # OxiPulse — local config files (may contain tokens/endpoints, never commit)
 config.toml
+!packaging/config.toml
 .env
 *.key
 *.pem

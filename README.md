@@ -63,6 +63,21 @@ curl -fsSL https://install.oxipulse.dev | sudo bash -s -- --endpoint <OTLP endpo
 
 Without arguments the script asks interactively. It downloads the release for your architecture, verifies its SHA-256 checksum, writes `/etc/oxipulse/config.toml` and installs a systemd service.
 
+### Debian, Ubuntu (.deb) and RHEL, Rocky, Fedora (.rpm)
+
+Each [release][urls.releases] has packages for amd64 and arm64, if you prefer your package manager to a script. Replace the version with the latest one:
+
+```bash
+# Debian / Ubuntu
+curl -fsSLO https://github.com/securyblack/oxi-pulse/releases/download/v0.4.1/oxipulse_0.4.1_amd64.deb
+sudo apt install ./oxipulse_0.4.1_amd64.deb
+
+# RHEL / Rocky / Alma / Fedora
+sudo dnf install https://github.com/securyblack/oxi-pulse/releases/download/v0.4.1/oxipulse-0.4.1-1.x86_64.rpm
+```
+
+The package installs `/usr/bin/oxipulse` and a systemd service but does not start it. Set `endpoint` (and `token` if needed) in `/etc/oxipulse/config.toml`, then `sudo systemctl enable --now oxipulse`. Self-update is off; upgrades come from installing the next package, which keeps your config.
+
 ### Docker
 
 Multi-arch image (amd64, arm64) on GitHub Container Registry. Run it with the host network, so it sees the host's interfaces and hostname, and the host's `/` mounted read-only, so it sees the host's disks:
