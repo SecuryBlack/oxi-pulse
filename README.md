@@ -63,6 +63,32 @@ curl -fsSL https://install.oxipulse.dev | sudo bash -s -- --endpoint <OTLP endpo
 
 Without arguments the script asks interactively. It downloads the release for your architecture, verifies its SHA-256 checksum, writes `/etc/oxipulse/config.toml` and installs a systemd service.
 
+### Docker
+
+Multi-arch image (amd64, arm64) on GitHub Container Registry. Run it with the host network, so it sees the host's interfaces and hostname, and the host's `/` mounted read-only, so it sees the host's disks:
+
+```bash
+docker run -d --name oxipulse --restart unless-stopped   --network host   -v /:/hostfs:ro   -e OXIPULSE_HOST_ROOT=/hostfs   -e OXIPULSE_ENDPOINT=http://<collector-host>:4317   ghcr.io/securyblack/oxipulse:latest
+```
+
+Or with Compose:
+
+```yaml
+services:
+  oxipulse:
+    image: ghcr.io/securyblack/oxipulse:latest
+    network_mode: host
+    volumes:
+      - /:/hostfs:ro
+    environment:
+      OXIPULSE_HOST_ROOT: /hostfs
+      OXIPULSE_ENDPOINT: http://<collector-host>:4317
+      # OXIPULSE_TOKEN: <token>
+    restart: unless-stopped
+```
+
+All [configuration](#configuration) goes through `OXIPULSE_*` variables. The container runs as a non-root user, logs to stdout (`docker logs oxipulse`) and does not update itself: pull a new tag instead. Pin a version (`ghcr.io/securyblack/oxipulse:0.4.1`) if you prefer.
+
 ### Windows (PowerShell as Administrator)
 
 ```powershell
@@ -117,6 +143,7 @@ latency_targets = []      # host:port list; default is your endpoint and 1.1.1.1
 | `OXIPULSE_AUTO_UPDATE` | `auto_update` (`true`/`false`) |
 | `OXIPULSE_LATENCY_TARGETS` | `latency_targets` (comma-separated) |
 | `OXIPULSE_TELEMETRY` | `telemetry_enabled` (`true`/`false`) |
+| `OXIPULSE_HOST_ROOT` | where the host's `/` is mounted when running in a container (Docker image) |
 | `RUST_LOG` | log level (`info` by default) |
 
 ---

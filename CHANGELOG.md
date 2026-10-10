@@ -7,7 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Docker**: Multi-arch image `ghcr.io/securyblack/oxipulse` (amd64, arm64), distroless, non-root, about 33 MB. Run it with `--network host`, `-v /:/hostfs:ro` and `OXIPULSE_HOST_ROOT=/hostfs`; it then reports the host's disks, OS and hostname.
+- **Config**: `OXIPULSE_HOST_ROOT` for running in a container.
+
 ### Fixed
+- **Linux compatibility**: Linux binaries need glibc 2.17 or later (built with cargo-zigbuild). They previously needed glibc 2.39, so they did not start on Ubuntu 22.04, Debian 12, RHEL 8/9 and older.
+- **Disks**: Container overlays, pseudo filesystems and repeated mounts of the same device (bind mounts) are no longer reported as separate disks.
 - **Offline buffer**: Metrics collected while the backend was unreachable were flushed as a burst of gauge updates, so only the last value of each metric survived. The exporter now keeps every export the backend did not accept, with its original timestamps, and sends them in order once it is reachable. Up to `buffer_max_size` exports (72 h at the default interval), about 2-3 KB each.
 
 ## [0.4.0] - 2026-10-10
