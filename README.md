@@ -16,7 +16,7 @@ One binary (about 4 MB download), installed as a systemd or Windows service. It 
 
 - **Light.** On Linux, 11 MB of RSS (3.5 MB private) and 0.01 % of one CPU core at the default 30 s interval; node_exporter used 24 MB and the OTel Collector's hostmetrics receiver 204 MB in the same run. On Windows 11, 15.5 MB of private memory and 0.07 % of one core. Method and reproducible script in [bench/](bench/README.md).
 - **Vendor-neutral.** Standard OTLP. No account needed, no hardcoded backend.
-- **Offline buffer.** Keeps up to 72 h of snapshots (default) while the backend is unreachable and flushes them when it comes back.
+- **Offline buffer.** Keeps up to 72 h of metrics (default) while the backend is unreachable and sends them, with their original timestamps, when it comes back. About 2-3 KB per interval in memory, so roughly 20 MB after a full 72 h outage.
 - **Self-updating, optionally.** Checks GitHub Releases daily; turn it off with `auto_update = false`.
 - **Private by default.** With a non-SecuryBlack endpoint it talks only to your endpoint and GitHub. See [what it sends](#what-oxipulse-sends-and-where).
 
@@ -102,7 +102,7 @@ endpoint = "http://collector.example.com:4317"   # required, OTLP/gRPC
 token    = ""                                    # optional, sent as Authorization: Bearer
 
 interval_secs   = 30      # collection and export interval
-buffer_max_size = 8640    # snapshots kept while offline (8640 x 30 s = 72 h)
+buffer_max_size = 8640    # exports kept while offline (8640 x 30 s = 72 h)
 auto_update     = true    # daily self-update from GitHub Releases
 latency_targets = []      # host:port list; default is your endpoint and 1.1.1.1:53
 # telemetry_enabled = false  # usage ping to SecuryBlack, see below

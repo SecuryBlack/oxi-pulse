@@ -2,14 +2,17 @@ use opentelemetry::{
     KeyValue, global,
     metrics::{Counter, Gauge, MeterProvider as _},
 };
-use opentelemetry_otlp::{MetricExporter, WithExportConfig, WithTonicConfig};
 use opentelemetry_sdk::{
     Resource,
     metrics::{PeriodicReader, SdkMeterProvider},
 };
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicU64};
 use std::time::Duration;
 use tonic::metadata::{MetadataMap, MetadataValue};
-use tonic::transport::ClientTlsConfig;
+use tonic::transport::{Channel, ClientTlsConfig};
+
+mod exporter;
 
 use crate::metrics::Metrics;
 
@@ -47,6 +50,9 @@ pub fn init(
     endpoint: &str,
     token: &str,
     interval_secs: u64,
+    buffer_max: usize,
+    queued: Arc<AtomicU64>,
+    offline: Arc<AtomicBool>,
     host_info: HostInfo,
 ) -> Result<(Instruments, SdkMeterProvider), Box<dyn std::error::Error>> {
     let normalized_endpoint =
@@ -63,17 +69,20 @@ pub fn init(
         metadata.insert("authorization", auth_value);
     }
 
-    // Build the OTLP exporter
-    let mut builder = MetricExporter::builder()
-        .with_tonic()
-        .with_endpoint(&normalized_endpoint)
-        .with_metadata(metadata);
-
+    // OTLP/gRPC exporter that keeps what the backend did not accept
+    let mut channel = Channel::from_shared(normalized_endpoint.clone())?
+        .connect_timeout(Duration::from_secs(5))
+        .timeout(Duration::from_secs(10));
     if normalized_endpoint.starts_with("https://") {
-        builder = builder.with_tls_config(ClientTlsConfig::new().with_native_roots());
+        channel = channel.tls_config(ClientTlsConfig::new().with_native_roots())?;
     }
-
-    let exporter = builder.build()?;
+    let exporter = exporter::QueueExporter::new(
+        channel.connect_lazy(),
+        metadata,
+        buffer_max,
+        queued,
+        offline,
+    );
 
     // Periodic reader flushes on the same interval as our collection loop
     let reader = PeriodicReader::builder(exporter)

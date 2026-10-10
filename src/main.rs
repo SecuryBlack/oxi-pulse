@@ -54,14 +54,25 @@ async fn run(mut shutdown: tokio::sync::oneshot::Receiver<()>) {
         kernel_version,
     };
 
-    let (instruments, _provider) =
-        match telemetry::init(&cfg.endpoint, &cfg.token, cfg.interval_secs, host_info) {
-            Ok(v) => v,
-            Err(e) => {
-                tracing::error!("failed to initialise OTLP exporter: {}", e);
-                std::process::exit(1);
-            }
-        };
+    let metrics_counter: Arc<AtomicU64> = Arc::new(AtomicU64::new(0));
+    let buffer_len_atomic: Arc<AtomicU64> = Arc::new(AtomicU64::new(0));
+    let is_offline_atomic: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
+
+    let (instruments, _provider) = match telemetry::init(
+        &cfg.endpoint,
+        &cfg.token,
+        cfg.interval_secs,
+        cfg.buffer_max_size,
+        Arc::clone(&buffer_len_atomic),
+        Arc::clone(&is_offline_atomic),
+        host_info,
+    ) {
+        Ok(v) => v,
+        Err(e) => {
+            tracing::error!("failed to initialise OTLP exporter: {}", e);
+            std::process::exit(1);
+        }
+    };
 
     info!("OTLP exporter initialised");
     status_handle.set_state("running");
@@ -112,10 +123,6 @@ async fn run(mut shutdown: tokio::sync::oneshot::Receiver<()>) {
         }
     };
 
-    let metrics_counter: Arc<AtomicU64> = Arc::new(AtomicU64::new(0));
-    let buffer_len_atomic: Arc<AtomicU64> = Arc::new(AtomicU64::new(0));
-    let is_offline_atomic: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
-
     if telemetry_active {
         info!("telemetry enabled — usage pings will be sent every 24 h");
         phone_home::start_telemetry_task(
@@ -130,81 +137,39 @@ async fn run(mut shutdown: tokio::sync::oneshot::Receiver<()>) {
     }
     // ─────────────────────────────────────────────────────────────────────────
 
+    // Snapshots are always recorded. The exporter keeps what the backend does
+    // not accept (up to buffer_max_size) and sends it once it is reachable.
     let mut collector = metrics::Collector::new();
-    let mut offline_buffer = sb_agent_core::buffer::OfflineBuffer::new(cfg.buffer_max_size);
-    let mut backoff = sb_agent_core::buffer::Backoff::new(cfg.interval_secs);
-    let mut is_offline = false;
     let mut interval = time::interval(Duration::from_secs(cfg.interval_secs));
 
     loop {
         tokio::select! {
             _ = interval.tick() => {
                 let m = collector.collect(&cfg.latency_targets, &cfg.endpoint).await;
-
-                let did_check = !is_offline || backoff.should_check();
-                let reachable = if did_check {
-                    sb_agent_core::net::is_reachable(&cfg.endpoint).await
-                } else {
-                    false
-                };
-
-                if reachable {
-                    sb_agent_core::buffer::log_status_change(is_offline, false, offline_buffer.len());
-
-                    if is_offline {
-                        let buffered = offline_buffer.drain_all();
-                        let count = buffered.len();
-                        for bm in buffered {
-                            telemetry::record(&instruments, &bm);
-                            metrics_counter.fetch_add(1, Ordering::Relaxed);
-                        }
-                        info!(flushed = count, "buffer flushed");
-                        backoff.on_success();
-                        is_offline = false;
-                        is_offline_atomic.store(false, Ordering::Relaxed);
-                    }
-
-                    telemetry::record(&instruments, &m);
-                    metrics_counter.fetch_add(1, Ordering::Relaxed);
-                    buffer_len_atomic.store(offline_buffer.len() as u64, Ordering::Relaxed);
-                    info!(
-                        cpu = format!("{:.1}%", m.cpu_usage_percent),
-                        ram_used_mb = m.ram_used_bytes / 1024 / 1024,
-                        ram_total_mb = m.ram_total_bytes / 1024 / 1024,
-                        disks = m.disks.iter().map(|d| format!("{}={:.1}%", d.name, d.used_bytes as f64 / d.total_bytes as f64 * 100.0)).collect::<Vec<_>>().join(", "),
-                        net_in_kb = m.networks.iter().map(|n| n.received).sum::<u64>() / 1024,
-                        net_out_kb = m.networks.iter().map(|n| n.transmitted).sum::<u64>() / 1024,
-                        latencies = m.latencies.iter().map(|l| {
-                            let val = l.latency_ms.map(|ms| format!("{:.1}ms", ms)).unwrap_or_else(|| "fail".to_string());
-                            format!("{}={}", l.target, val)
-                        }).collect::<Vec<_>>().join(", "),
-                        "metrics collected and recorded"
-                    );
-                    status_handle.set_details(serde_json::json!({
-                        "cpu_usage_percent": m.cpu_usage_percent,
-                        "cpu_count": m.cpu_count,
-                        "ram_used_bytes": m.ram_used_bytes,
-                        "ram_total_bytes": m.ram_total_bytes,
-                        "uptime_secs": m.uptime_secs,
-                        "buffered": offline_buffer.len(),
-                        "offline": false,
-                    }));
-                } else {
-                    sb_agent_core::buffer::log_status_change(is_offline, true, 0);
-                    is_offline = true;
-                    is_offline_atomic.store(true, Ordering::Relaxed);
-                    if did_check {
-                        backoff.on_failure();
-                    }
-
-                    offline_buffer.push(m);
-                    buffer_len_atomic.store(offline_buffer.len() as u64, Ordering::Relaxed);
-                    tracing::warn!(buffered = offline_buffer.len(), max = cfg.buffer_max_size, "offline — buffering metrics");
-                    status_handle.set_details(serde_json::json!({
-                        "buffered": offline_buffer.len(),
-                        "offline": true,
-                    }));
-                }
+                telemetry::record(&instruments, &m);
+                metrics_counter.fetch_add(1, Ordering::Relaxed);
+                info!(
+                    cpu = format!("{:.1}%", m.cpu_usage_percent),
+                    ram_used_mb = m.ram_used_bytes / 1024 / 1024,
+                    ram_total_mb = m.ram_total_bytes / 1024 / 1024,
+                    disks = m.disks.iter().map(|d| format!("{}={:.1}%", d.name, d.used_bytes as f64 / d.total_bytes as f64 * 100.0)).collect::<Vec<_>>().join(", "),
+                    net_in_kb = m.networks.iter().map(|n| n.received).sum::<u64>() / 1024,
+                    net_out_kb = m.networks.iter().map(|n| n.transmitted).sum::<u64>() / 1024,
+                    latencies = m.latencies.iter().map(|l| {
+                        let val = l.latency_ms.map(|ms| format!("{:.1}ms", ms)).unwrap_or_else(|| "fail".to_string());
+                        format!("{}={}", l.target, val)
+                    }).collect::<Vec<_>>().join(", "),
+                    "metrics collected and recorded"
+                );
+                status_handle.set_details(serde_json::json!({
+                    "cpu_usage_percent": m.cpu_usage_percent,
+                    "cpu_count": m.cpu_count,
+                    "ram_used_bytes": m.ram_used_bytes,
+                    "ram_total_bytes": m.ram_total_bytes,
+                    "uptime_secs": m.uptime_secs,
+                    "buffered": buffer_len_atomic.load(Ordering::Relaxed),
+                    "offline": is_offline_atomic.load(Ordering::Relaxed),
+                }));
             }
             _ = &mut shutdown => {
                 info!("shutdown signal received, flushing telemetry provider");

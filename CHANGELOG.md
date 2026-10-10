@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Offline buffer**: Metrics collected while the backend was unreachable were flushed as a burst of gauge updates, so only the last value of each metric survived. The exporter now keeps every export the backend did not accept, with its original timestamps, and sends them in order once it is reachable. Up to `buffer_max_size` exports (72 h at the default interval), about 2-3 KB each.
+
 ## [0.4.0] - 2026-10-10
 
 ### Changed

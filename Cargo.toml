@@ -17,7 +17,8 @@ serde = { version = "1", features = ["derive"] }
 toml = "0.8"
 opentelemetry = { version = "0.32", features = ["metrics"] }
 opentelemetry_sdk = { version = "0.32", features = ["metrics", "rt-tokio"] }
-opentelemetry-otlp = { version = "0.32", features = ["metrics", "grpc-tonic", "tls-ring", "tls-roots"] }
+opentelemetry-proto = { version = "0.32", default-features = false, features = ["gen-tonic", "metrics"] }
+prost = "0.14"
 tonic = { version = "0.14", features = ["tls-ring", "tls-native-roots"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 serde_json = "1"
