@@ -1,0 +1,50 @@
+- name: Check settings
+  ansible.builtin.assert:
+    that:
+      - oxipulse_state in ['present', 'absent']
+      - oxipulse_state == 'absent' or oxipulse_endpoint | length > 0
+      - ansible_facts.os_family in ['Debian', 'RedHat']
+      - ansible_facts.architecture in ['x86_64', 'aarch64']
+    fail_msg: >-
+      Set oxipulse_endpoint. Supported: Debian/Ubuntu and RHEL/Rocky/Alma/Fedora on x86_64 or aarch64.
+
+- name: Install the package
+  when: oxipulse_state == 'present'
+  vars:
+    _base: "https://github.com/securyblack/oxi-pulse/releases/download/v{{ oxipulse_version }}"
+    _deb_arch: "{{ 'amd64' if ansible_facts.architecture == 'x86_64' else 'arm64' }}"
+  block:
+    - name: Install the .deb
+      ansible.builtin.apt:
+        deb: "{{ _base }}/oxipulse_{{ oxipulse_version }}_{{ _deb_arch }}.deb"
+      when: ansible_facts.os_family == 'Debian'
+      notify: Restart oxipulse
+
+    - name: Install the .rpm
+      ansible.builtin.dnf:
+        name: "{{ _base }}/oxipulse-{{ oxipulse_version }}-1.{{ ansible_facts.architecture }}.rpm"
+        # The release packages are not GPG-signed; the download is over HTTPS from GitHub.
+        disable_gpg_check: true
+      when: ansible_facts.os_family == 'RedHat'
+      notify: Restart oxipulse
+
+    - name: Write the configuration
+      ansible.builtin.template:
+        src: config.toml.j2
+        dest: /etc/oxipulse/config.toml
+        owner: root
+        group: root
+        mode: "0600"
+      notify: Restart oxipulse
+
+    - name: Start the service
+      ansible.builtin.systemd_service:
+        name: oxipulse
+        enabled: true
+        state: started
+
+- name: Remove the package
+  ansible.builtin.package:
+    name: oxipulse
+    state: absent
+  when: oxipulse_state == 'absent'

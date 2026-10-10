@@ -1,0 +1,11 @@
+namespace: securyblack
+name: oxipulse
+version: 0.4.2
+readme: README.md
+authors: [SecuryBlack <security@securyblack.com>]
+description: Install and configure the OxiPulse host metrics agent (OpenTelemetry/OTLP)
+license: [Apache-2.0]
+tags: [monitoring, opentelemetry, metrics, observability]
+repository: https://github.com/securyblack/oxi-pulse
+homepage: https://oxipulse.dev
+issues: https://github.com/securyblack/oxi-pulse/issues

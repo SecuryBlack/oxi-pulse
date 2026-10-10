@@ -1,0 +1,58 @@
+name: Ansible role check
+
+on:
+  workflow_dispatch:
+  push:
+    paths: [ansible/**, .github/workflows/ansible.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  role:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Containers and collector
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq incus >/dev/null
+          sudo incus admin init --minimal
+          # Docker's FORWARD policy would cut the containers off the internet.
+          sudo iptables -P FORWARD ACCEPT
+          for c in debian/12 ubuntu/24.04 rockylinux/9; do sudo incus launch images:$c "${c//[\/.]/-}"; done
+          sleep 15
+          for c in debian-12 ubuntu-24-04; do sudo incus exec $c -- sh -c 'apt-get update -qq && apt-get install -y -qq python3 >/dev/null'; done
+          sudo incus exec rockylinux-9 -- dnf install -y -q python3
+          curl -fsSL https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v0.162.0/otelcol-contrib_0.162.0_linux_amd64.tar.gz | tar xz -C /tmp otelcol-contrib
+          printf '%s\n' 'receivers: { otlp: { protocols: { grpc: { endpoint: 0.0.0.0:4317 } } } }' \
+            'exporters: { file: { path: /tmp/m.json } }' \
+            'service: { pipelines: { metrics: { receivers: [otlp], exporters: [file] } } }' > /tmp/c.yaml
+          nohup /tmp/otelcol-contrib --config=/tmp/c.yaml >/tmp/otelcol.log 2>&1 &
+      - name: Run the role twice, then remove
+        run: |
+          pipx install --include-deps ansible >/dev/null
+          export ANSIBLE_COLLECTIONS_PATH=/tmp/collections
+          ansible-galaxy collection install ./ansible -p /tmp/collections
+          BR=$(sudo incus network get incusbr0 ipv4.address | cut -d/ -f1)
+          printf '[agents]\ndebian-12\nubuntu-24-04\nrockylinux-9\n[agents:vars]\nansible_connection=community.general.incus\n' > /tmp/hosts
+          cat > /tmp/site.yml <<Y
+          - hosts: agents
+            roles:
+              - role: securyblack.oxipulse.oxipulse
+                vars:
+                  oxipulse_endpoint: "http://$BR:4317"
+                  oxipulse_interval_secs: 5
+          Y
+          run() { sudo -E env "PATH=$PATH" ansible-playbook -i /tmp/hosts "$@"; }
+          run /tmp/site.yml
+          run /tmp/site.yml --diff | tee /tmp/second.log
+          grep -E 'changed=[1-9]' /tmp/second.log && { echo "second run was not idempotent"; exit 1; }
+          sleep 20
+          for c in debian-12 ubuntu-24-04 rockylinux-9; do
+            sudo incus exec $c -- sh -c 'stat -c "%a %n" /etc/oxipulse/config.toml; systemctl is-active oxipulse'
+            grep -q "\"$c\"" /tmp/m.json && echo "$c: metrics received"
+          done
+          for c in debian-12 ubuntu-24-04 rockylinux-9; do grep -q "\"$c\"" /tmp/m.json || { echo "no metrics from $c"; exit 1; }; done
+          sudo incus exec debian-12 -- cat /etc/oxipulse/config.toml
+          run /tmp/site.yml -e oxipulse_state=absent
+          for c in debian-12 ubuntu-24-04 rockylinux-9; do sudo incus exec $c -- sh -c '! command -v oxipulse' && echo "$c: removed"; done

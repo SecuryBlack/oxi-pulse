@@ -1,0 +1,12 @@
+version = "{{ oxipulse_version }}"
+# {{ ansible_managed }}
+endpoint = {{ oxipulse_endpoint | to_json }}
+token = {{ oxipulse_token | to_json }}
+interval_secs = {{ oxipulse_interval_secs | int }}
+buffer_max_size = {{ oxipulse_buffer_max_size | int }}
+latency_targets = {{ oxipulse_latency_targets | to_json }}
+{% if oxipulse_telemetry_enabled is not none %}
+telemetry_enabled = {{ oxipulse_telemetry_enabled | bool | lower }}
+{% endif %}
+# Updates come from the package (re-run the role with a new oxipulse_version)
+auto_update = false

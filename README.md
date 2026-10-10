@@ -80,6 +80,8 @@ The package installs `/usr/bin/oxipulse` and a systemd service but does not star
 
 Proxmox VE (node, LXC containers, VMs): see [docs/proxmox.md](docs/proxmox.md).
 
+Ansible: the [`securyblack.oxipulse`](ansible/) collection installs the package, writes the config and enables the service on Debian, Ubuntu and RHEL-family hosts.
+
 ### Docker
 
 Multi-arch image (amd64, arm64) on GitHub Container Registry. Run it with the host network, so it sees the host's interfaces and hostname, and the host's `/` mounted read-only, so it sees the host's disks:
