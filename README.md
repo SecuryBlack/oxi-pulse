@@ -78,6 +78,8 @@ sudo dnf install https://github.com/securyblack/oxi-pulse/releases/download/v0.4
 
 The package installs `/usr/bin/oxipulse` and a systemd service but does not start it. Set `endpoint` (and `token` if needed) in `/etc/oxipulse/config.toml`, then `sudo systemctl enable --now oxipulse`. Self-update is off; upgrades come from installing the next package, which keeps your config.
 
+Proxmox VE (node, LXC containers, VMs): see [docs/proxmox.md](docs/proxmox.md).
+
 ### Docker
 
 Multi-arch image (amd64, arm64) on GitHub Container Registry. Run it with the host network, so it sees the host's interfaces and hostname, and the host's `/` mounted read-only, so it sees the host's disks:
@@ -203,7 +205,7 @@ With any other endpoint and default settings, OxiPulse never contacts SecuryBlac
 
 - The Linux service runs as **root** (the self-updater needs to replace the binary). See [SECURITY.md](SECURITY.md) to run it unprivileged with `auto_update = false`.
 - The self-updater downloads over HTTPS but does not verify checksums or signatures yet; the installer does.
-- No macOS build, no per-container metrics and no Docker image yet.
+- No macOS build and no per-container (Docker) metrics yet.
 - Metric names are not OTel semantic conventions yet (see above).
 
 ---
