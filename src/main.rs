@@ -42,8 +42,13 @@ async fn run(mut shutdown: tokio::sync::oneshot::Receiver<()>) {
     let mut sys = sysinfo::System::new();
     sys.refresh_cpu_all();
     let cpu_model = sys.cpus().first().map(|c| c.brand().trim().to_string());
-    let os_name = sysinfo::System::name();
-    let os_version = sysinfo::System::os_version();
+    let (os_name, os_version) = match std::env::var("OXIPULSE_HOST_ROOT")
+        .ok()
+        .and_then(|root| metrics::host_os_release(&root))
+    {
+        Some((name, version)) => (Some(name), version),
+        None => (sysinfo::System::name(), sysinfo::System::os_version()),
+    };
     let kernel_version = sysinfo::System::kernel_version();
 
     let host_info = telemetry::HostInfo {

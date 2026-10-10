@@ -49,6 +49,8 @@ pub struct Metrics {
 pub struct Collector {
     sys: System,
     networks: Networks,
+    /// Where the host's `/` is mounted when running in a container (`OXIPULSE_HOST_ROOT`).
+    host_root: Option<String>,
 }
 
 impl Collector {
@@ -56,6 +58,9 @@ impl Collector {
         Self {
             sys: System::new_all(),
             networks: Networks::new_with_refreshed_list(),
+            host_root: std::env::var("OXIPULSE_HOST_ROOT")
+                .ok()
+                .filter(|v| !v.is_empty()),
         }
     }
 
@@ -113,6 +118,7 @@ impl Collector {
                 }
             })
             .collect();
+        let disk_infos = keep_disks(disk_infos, self.host_root.as_deref());
 
         // Network — bytes per interface since the previous refresh
         self.networks.refresh(true);
@@ -171,6 +177,52 @@ impl Collector {
     }
 }
 
+/// Drops container overlays, pseudo filesystems (size 0) and repeated mounts of the same device (bind mounts),
+/// so each filesystem is reported once. With `host_root` (the host's `/` mounted
+/// in a container), keeps only the host's mounts, with the prefix removed.
+fn keep_disks(disks: Vec<DiskInfo>, host_root: Option<&str>) -> Vec<DiskInfo> {
+    let mut seen = std::collections::HashSet::new();
+    disks
+        .into_iter()
+        .filter(|d| d.fs_type != "overlay" && d.total_bytes > 0)
+        .filter_map(|mut d| {
+            if let Some(root) = host_root {
+                let rest = d.mount_point.strip_prefix(root.trim_end_matches('/'))?;
+                if !rest.is_empty() && !rest.starts_with('/') {
+                    return None;
+                }
+                // What sysinfo skips on the host, now visible under the prefix.
+                if ["/sys", "/proc", "/dev", "/run"]
+                    .iter()
+                    .any(|p| rest == *p || rest.starts_with(&format!("{p}/")))
+                    && !rest.starts_with("/run/media")
+                {
+                    return None;
+                }
+                d.mount_point = if rest.is_empty() {
+                    "/".into()
+                } else {
+                    rest.into()
+                };
+            }
+            seen.insert(d.name.clone()).then_some(d)
+        })
+        .collect()
+}
+
+/// OS name and version from `<host_root>/etc/os-release`, so a container
+/// reports the host's distribution instead of the image's.
+pub fn host_os_release(host_root: &str) -> Option<(String, Option<String>)> {
+    let path = format!("{}/etc/os-release", host_root.trim_end_matches('/'));
+    let text = std::fs::read_to_string(path).ok()?;
+    let field = |key: &str| {
+        text.lines()
+            .find_map(|l| l.strip_prefix(key)?.strip_prefix('='))
+            .map(|v| v.trim().trim_matches('"').to_string())
+    };
+    Some((field("NAME")?, field("VERSION_ID")))
+}
+
 /// Helper function to perform a single TCP ping.
 async fn ping_target(target: &str) -> Option<f64> {
     let addr = parse_host_port(target)?;
@@ -196,6 +248,58 @@ async fn ping_target(target: &str) -> Option<f64> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn disk(name: &str, mount: &str, fs: &str) -> DiskInfo {
+        DiskInfo {
+            name: name.into(),
+            mount_point: mount.into(),
+            fs_type: fs.into(),
+            total_bytes: 100,
+            used_bytes: 10,
+        }
+    }
+
+    #[test]
+    fn keep_disks_in_container() {
+        let raw = vec![
+            disk("overlay", "/", "overlay"),
+            disk("/dev/sda1", "/etc/hosts", "ext4"),
+            disk("/dev/sda1", "/hostfs", "ext4"),
+            disk("/dev/sda15", "/hostfs/boot/efi", "vfat"),
+            disk("/dev/sdb1", "/hostfsdata", "ext4"),
+            disk(
+                "overlay",
+                "/hostfs/var/lib/docker/overlay2/x/merged",
+                "overlay",
+            ),
+            disk("efivarfs", "/hostfs/sys/firmware/efi/efivars", "efivarfs"),
+            DiskInfo {
+                total_bytes: 0,
+                ..disk("bpf", "/hostfs/sys/fs/bpf", "bpf")
+            },
+        ];
+        let kept: Vec<_> = keep_disks(raw, Some("/hostfs"))
+            .into_iter()
+            .map(|d| (d.name, d.mount_point))
+            .collect();
+        assert_eq!(
+            kept,
+            vec![
+                ("/dev/sda1".to_string(), "/".to_string()),
+                ("/dev/sda15".to_string(), "/boot/efi".to_string()),
+            ]
+        );
+    }
+
+    #[test]
+    fn keep_disks_on_host_drops_overlays_and_bind_mounts() {
+        let raw = vec![
+            disk("/dev/sda1", "/", "ext4"),
+            disk("/dev/sda1", "/var/snap/foo", "ext4"),
+            disk("overlay", "/var/lib/docker/overlay2/x/merged", "overlay"),
+        ];
+        assert_eq!(keep_disks(raw, None).len(), 1);
+    }
 
     #[tokio::test]
     async fn test_collector_creation_and_collection() {
