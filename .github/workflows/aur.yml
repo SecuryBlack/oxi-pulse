@@ -1,0 +1,28 @@
+name: AUR package check
+
+on:
+  workflow_dispatch:
+  push:
+    paths: [packaging/aur/**]
+
+permissions:
+  contents: read
+
+jobs:
+  makepkg:
+    runs-on: ubuntu-24.04
+    container: archlinux:latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build, install and lint
+        run: |
+          pacman -Syu --noconfirm --needed base-devel namcap
+          useradd -m builder && cp -r packaging/aur /home/builder/aur && chown -R builder /home/builder/aur
+          cd /home/builder/aur
+          su builder -c 'makepkg --noconfirm && makepkg --printsrcinfo > .SRCINFO.generated'
+          namcap PKGBUILD *.pkg.tar.zst || true
+          pacman -U --noconfirm *.pkg.tar.zst
+          oxipulse --version
+          pacman -Ql oxipulse-bin
+          stat -c '%a %n' /etc/oxipulse/config.toml
+          diff -u .SRCINFO .SRCINFO.generated

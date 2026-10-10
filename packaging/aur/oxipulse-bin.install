@@ -1,0 +1,8 @@
+post_install() {
+  echo 'Set endpoint (and token if needed) in /etc/oxipulse/config.toml, then:'
+  echo '  sudo systemctl enable --now oxipulse'
+}
+
+post_upgrade() {
+  systemctl try-restart oxipulse.service 2>/dev/null || true
+}
