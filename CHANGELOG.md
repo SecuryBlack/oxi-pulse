@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.4] - 2026-10-12
+
+### Security
+- **Dependencies**: rustls 0.23.45 and lru 0.18 (through ratatui 0.30 in sb-agent-core 0.2), clearing the open RustSec/GitHub advisories.
+
+### Fixed
+- **Config**: a config file with non-UTF-8 bytes is read without losing data, and a logging init failure no longer panics (sb-agent-core 0.2).
+
 ## [0.4.3] - 2026-10-12
 
 ### Added
