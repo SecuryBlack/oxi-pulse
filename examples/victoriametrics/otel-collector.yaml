@@ -1,0 +1,20 @@
+# Receives OTLP/gRPC from OxiPulse and forwards it to VictoriaMetrics over OTLP/HTTP.
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+
+processors:
+  batch: {}
+
+exporters:
+  otlphttp/victoriametrics:
+    metrics_endpoint: http://victoriametrics:8428/opentelemetry/v1/metrics
+
+service:
+  pipelines:
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlphttp/victoriametrics]

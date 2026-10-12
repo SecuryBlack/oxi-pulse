@@ -47,8 +47,8 @@ Prefer to read the installer first? It is [scripts/install.sh](scripts/install.s
 
 | Backend | How |
 |---|---|
-| **Your own stack** (OTel Collector, Prometheus, Grafana, VictoriaMetrics, SigNoz, OpenObserve, Uptrace…) | Point `endpoint` at its OTLP/gRPC receiver (usually port 4317). Set `token` only if it requires a Bearer token |
-| **An OTLP vendor** | Their OTLP/gRPC endpoint and API token |
+| **Your own stack** (OTel Collector, Prometheus, Grafana, VictoriaMetrics, SigNoz, OpenObserve, Uptrace…) | Point `endpoint` at its OTLP/gRPC receiver. Tested guides for [SigNoz, OpenObserve, Uptrace and VictoriaMetrics](docs/backends/) |
+| **An OTLP vendor** | Their OTLP/gRPC endpoint, with the API key as `token` (Bearer) or in [`headers`](docs/backends/#headers) |
 | **[SecuryBlack Cloud][urls.securyblack]** | Hosted dashboards, alerts and security audit for your servers, with a free Hobby plan for one server. Add a server in the [panel][urls.securyblack_app] and copy the install command, which already includes endpoint and token |
 
 ---
@@ -151,12 +151,16 @@ buffer_max_size = 8640    # exports kept while offline (8640 x 30 s = 72 h)
 auto_update     = true    # daily self-update from GitHub Releases
 latency_targets = []      # host:port list; default is your endpoint and 1.1.1.1:53
 # telemetry_enabled = false  # usage ping to SecuryBlack, see below
+
+# [headers]               # extra gRPC headers, e.g. for OpenObserve or Uptrace
+# organization = "default"
 ```
 
 | Variable | Setting |
 |---|---|
 | `OXIPULSE_ENDPOINT` | `endpoint` |
 | `OXIPULSE_TOKEN` | `token` |
+| `OXIPULSE_HEADERS` | `headers` (`key=value,key=value`) |
 | `OXIPULSE_INTERVAL_SECS` | `interval_secs` |
 | `OXIPULSE_BUFFER_MAX` | `buffer_max_size` |
 | `OXIPULSE_AUTO_UPDATE` | `auto_update` (`true`/`false`) |

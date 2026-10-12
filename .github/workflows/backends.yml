@@ -1,0 +1,49 @@
+name: Backend guides
+
+# Runs every guide in docs/backends/ end to end: starts the backend, points a
+# freshly built OxiPulse at it, and checks that the metrics can be queried.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "docs/backends/**"
+      - "examples/**"
+      - ".github/scripts/backend-test.sh"
+      - ".github/workflows/backends.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: oxipulse
+          path: target/release/oxipulse
+
+  backend:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        backend: [openobserve, uptrace, victoriametrics]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: oxipulse
+      - run: chmod +x oxipulse
+      - name: ${{ matrix.backend }}
+        run: bash .github/scripts/backend-test.sh ${{ matrix.backend }}
+      - name: Logs on failure
+        if: failure()
+        run: |
+          cat /tmp/oxipulse.log || true
+          docker ps -a

@@ -63,9 +63,17 @@ async fn run(mut shutdown: tokio::sync::oneshot::Receiver<()>) {
     let buffer_len_atomic: Arc<AtomicU64> = Arc::new(AtomicU64::new(0));
     let is_offline_atomic: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
 
+    // The token is sent as a Bearer header unless `headers` sets its own authorization
+    let mut headers = cfg.headers.clone();
+    if !cfg.token.is_empty() {
+        headers
+            .entry("authorization".to_string())
+            .or_insert_with(|| format!("Bearer {}", cfg.token));
+    }
+
     let (instruments, _provider) = match telemetry::init(
         &cfg.endpoint,
-        &cfg.token,
+        &headers,
         cfg.interval_secs,
         cfg.buffer_max_size,
         Arc::clone(&buffer_len_atomic),

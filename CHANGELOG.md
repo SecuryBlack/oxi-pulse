@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Config**: `headers` (`OXIPULSE_HEADERS`) for backends that want their own gRPC headers, such as OpenObserve (Basic auth, organization), Uptrace (`uptrace-dsn`) or SigNoz Cloud (`signoz-ingestion-key`). `token` is still sent as a Bearer header unless `headers` sets `authorization`.
+- **Docs**: [backend guides](docs/backends/) for SigNoz, OpenObserve, Uptrace and VictoriaMetrics; all but SigNoz are tested end to end in CI (#15).
+- **Logs**: every failed export is logged at debug level with its gRPC status (`RUST_LOG=oxipulse=debug`).
+
 ## [0.4.2] - 2026-10-10
 
 ### Added

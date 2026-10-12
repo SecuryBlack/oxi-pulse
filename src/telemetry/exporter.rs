@@ -12,7 +12,7 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::Duration;
 use tokio::sync::Mutex;
 use tonic::{Request, metadata::MetadataMap, transport::Channel};
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 
 /// OTLP/gRPC exporter that keeps the requests the backend did not accept and
 /// sends them again, oldest first, once it is reachable. Every request keeps the
@@ -68,6 +68,7 @@ impl PushMetricExporter for QueueExporter {
             *request.metadata_mut() = self.metadata.clone();
             if let Err(status) = client.export(request).await {
                 self.queued.store(queue.len() as u64, Ordering::Relaxed);
+                debug!(code = ?status.code(), error = %status.message(), queued = queue.len(), "export failed");
                 if !self.offline.swap(true, Ordering::Relaxed) {
                     warn!(error = %status.message(), "backend unreachable, keeping metrics until it is back");
                 }

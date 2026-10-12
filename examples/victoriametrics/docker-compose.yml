@@ -1,0 +1,29 @@
+# OxiPulse -> OTel Collector -> VictoriaMetrics.
+# VictoriaMetrics takes OTLP over HTTP only; OxiPulse speaks OTLP/gRPC, so the
+# Collector sits in between and converts.
+services:
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.162.0
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./otel-collector.yaml:/etc/otelcol/config.yaml:ro
+    ports:
+      - "4317:4317"
+    depends_on: [victoriametrics]
+    restart: unless-stopped
+
+  victoriametrics:
+    image: victoriametrics/victoria-metrics:v1.154.0
+    command:
+      - -storageDataPath=/storage
+      - -retentionPeriod=30d
+      # Same metric names as Prometheus: system_cpu_utilization_ratio, ...
+      - -opentelemetry.usePrometheusNaming
+    volumes:
+      - vm-data:/storage
+    ports:
+      - "8428:8428"
+    restart: unless-stopped
+
+volumes:
+  vm-data:

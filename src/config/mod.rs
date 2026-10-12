@@ -1,4 +1,5 @@
 use serde::Deserialize;
+use std::collections::BTreeMap;
 use std::env;
 
 #[derive(Debug, Deserialize)]
@@ -13,6 +14,10 @@ pub struct Config {
     /// Optional: leave empty for collectors that need no auth.
     #[serde(default)]
     pub token: String,
+    /// Extra gRPC headers sent with every export, for backends that want their
+    /// own auth or routing headers (e.g. `signoz-ingestion-key`, `uptrace-dsn`).
+    #[serde(default)]
+    pub headers: BTreeMap<String, String>,
     /// Deployment mode: "direct" (default) or "local_agent" (sends to localhost:4317)
     #[serde(default)]
     pub mode: Option<String>,
@@ -47,6 +52,7 @@ impl Default for Config {
             version: None,
             endpoint: String::new(),
             token: String::new(),
+            headers: BTreeMap::new(),
             mode: None,
             interval_secs: default_interval(),
             buffer_max_size: default_buffer_max(),
@@ -72,6 +78,16 @@ fn default_auto_update() -> bool {
 
 fn default_api_url() -> String {
     "https://api.securyblack.com".to_string()
+}
+
+/// Parses `key1=value1,key2=value2`, the format of OTEL_EXPORTER_OTLP_HEADERS.
+/// Values may contain `=` (Basic auth, DSNs); only the first one splits.
+fn parse_headers(s: &str) -> BTreeMap<String, String> {
+    s.split(',')
+        .filter_map(|pair| pair.split_once('='))
+        .map(|(k, v)| (k.trim().to_lowercase(), v.trim().to_string()))
+        .filter(|(k, _)| !k.is_empty())
+        .collect()
 }
 
 #[derive(Debug)]
@@ -108,6 +124,9 @@ impl Config {
         }
         if let Ok(v) = env::var("OXIPULSE_TOKEN") {
             cfg.token = v;
+        }
+        if let Ok(v) = env::var("OXIPULSE_HEADERS") {
+            cfg.headers = parse_headers(&v);
         }
         if let Ok(v) = env::var("OXIPULSE_INTERVAL_SECS")
             && let Ok(n) = v.parse::<u64>()
@@ -189,6 +208,14 @@ mod tests {
             format!("{}", ConfigError::ParseError("invalid toml".to_string()))
                 .contains("invalid toml")
         );
+    }
+
+    #[test]
+    fn test_parse_headers() {
+        let h = parse_headers("Authorization=Basic YTpi==, stream-name=default,bad");
+        assert_eq!(h.len(), 2);
+        assert_eq!(h["authorization"], "Basic YTpi==");
+        assert_eq!(h["stream-name"], "default");
     }
 
     #[test]

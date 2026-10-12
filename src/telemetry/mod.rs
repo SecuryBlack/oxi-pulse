@@ -6,6 +6,7 @@ use opentelemetry_sdk::{
     Resource,
     metrics::{PeriodicReader, SdkMeterProvider},
 };
+use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64};
 use std::time::Duration;
@@ -48,7 +49,7 @@ pub struct HostInfo {
 /// The returned `SdkMeterProvider` must be kept alive for the duration of the process.
 pub fn init(
     endpoint: &str,
-    token: &str,
+    headers: &BTreeMap<String, String>,
     interval_secs: u64,
     buffer_max: usize,
     queued: Arc<AtomicU64>,
@@ -62,11 +63,11 @@ pub fn init(
             endpoint.to_string()
         };
 
-    // Build metadata map with the auth token (omitted for collectors without auth)
+    // gRPC metadata: the Bearer token (if any) plus the user's own headers
     let mut metadata = MetadataMap::new();
-    if !token.is_empty() {
-        let auth_value = MetadataValue::try_from(format!("Bearer {}", token))?;
-        metadata.insert("authorization", auth_value);
+    for (key, value) in headers {
+        let key = tonic::metadata::AsciiMetadataKey::from_bytes(key.as_bytes())?;
+        metadata.insert(key, MetadataValue::try_from(value.as_str())?);
     }
 
     // OTLP/gRPC exporter that keeps what the backend did not accept
