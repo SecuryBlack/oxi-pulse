@@ -1,13 +1,13 @@
 [package]
 name = "oxipulse"
-version = "0.4.4"
+version = "0.4.5"
 edition = "2024"
 license = "Apache-2.0"
 description = "Ultralight open source server monitoring agent"
 repository = "https://github.com/securyblack/oxi-pulse"
 
 [dependencies]
-sb-agent-core = "0.2"
+sb-agent-core = "0.3"
 tokio = { version = "1", features = ["full"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
@@ -23,9 +23,8 @@ tonic = { version = "0.14", features = ["tls-ring", "tls-native-roots"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 serde_json = "1"
 
-# TEMPORAL: mismo motivo que en ferro-sentry/nexus-agent — el intake de
-# comandos (`command_intake`) y `updater::check_now` solo están en GitHub
-# todavía, sin publicar a crates.io. Quitar en cuanto se publique una
-# versión del crate que los incluya.
+# sb-agent-core 0.3 (updater que solo instala releases firmadas con ed25519)
+# no está publicado en crates.io: el patch lo resuelve desde el tag de GitHub.
+# Quitar cuando se publique esa versión del crate.
 [patch.crates-io]
-sb-agent-core = { git = "https://github.com/SecuryBlack/sb-agent-core.git", rev = "34992eb" }
+sb-agent-core = { git = "https://github.com/SecuryBlack/sb-agent-core.git", tag = "v0.3.0" }

@@ -2,7 +2,7 @@
 oxipulse_endpoint: ""
 # Bearer token, only if your backend needs one. Keep it in Ansible Vault.
 oxipulse_token: ""
-oxipulse_version: "0.4.4"
+oxipulse_version: "0.4.5"
 oxipulse_interval_secs: 30
 # Exports kept while the backend is unreachable (8640 x 30 s = 72 h).
 oxipulse_buffer_max_size: 8640

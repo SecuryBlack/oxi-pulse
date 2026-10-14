@@ -10,15 +10,16 @@ permissions:
   packages: write
 
 jobs:
-  # Created as a draft: releases are immutable once published, so the packages
-  # are added first and linux-packages publishes it.
+  # Always a draft: the archives are signed offline with the release key and
+  # only then published (sb-agent-core scripts/sign-release.sh --publish).
+  # No job here may publish it: an unsigned release would be rejected by the
+  # agents' updater, and once published it is immutable.
   release:
     uses: securyblack/sb-agent-core/.github/workflows/release.yml@master
     with:
       binary-name: oxipulse
       windows-static-crt: true
       glibc: "2.17"
-      draft: true
       targets-json: |
         [
           {"target":"x86_64-unknown-linux-gnu","os":"ubuntu-latest","archive_ext":"tar.gz","cross":false},
@@ -61,11 +62,6 @@ jobs:
           ls -l pkg
           (cd pkg && sha256sum * > SHA256SUMS-packages)
           gh release upload "$TAG" pkg/*
-
-      - name: Publish the release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh release edit "$TAG" --draft=false --latest
 
       - uses: docker/setup-buildx-action@v3
 

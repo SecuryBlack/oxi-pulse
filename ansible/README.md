@@ -20,7 +20,7 @@ ansible-galaxy collection install "git+https://github.com/securyblack/oxi-pulse.
 |---|---|---|
 | `oxipulse_endpoint` | | OTLP/gRPC receiver. Required. |
 | `oxipulse_token` | `""` | Bearer token, if your backend needs one. Keep it in Ansible Vault. |
-| `oxipulse_version` | `0.4.4` | Release to install. Change it and re-run to upgrade. |
+| `oxipulse_version` | `0.4.5` | Release to install. Change it and re-run to upgrade. |
 | `oxipulse_interval_secs` | `30` | Collection and export interval. |
 | `oxipulse_buffer_max_size` | `8640` | Exports kept while the backend is unreachable (72 h at 30 s). |
 | `oxipulse_latency_targets` | `[]` | `host:port` list; empty means your endpoint and `1.1.1.1:53`. |
