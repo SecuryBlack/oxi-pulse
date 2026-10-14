@@ -210,7 +210,7 @@ With any other endpoint and default settings, OxiPulse never contacts SecuryBlac
 ## Known limitations
 
 - The Linux service runs as **root** (the self-updater needs to replace the binary). See [SECURITY.md](SECURITY.md) to run it unprivileged with `auto_update = false`.
-- The self-updater downloads over HTTPS but does not verify checksums or signatures yet; the installer does.
+- The self-updater only installs signed archives (since 0.4.5), but the signature does not cover the version number: someone able to publish a release could ship an older signed build under a newer tag.
 - No macOS build and no per-container (Docker) metrics yet.
 - Metric names are not OTel semantic conventions yet (see above).
 
@@ -273,7 +273,10 @@ cargo build --release --target x86_64-pc-windows-msvc
 
 OxiPulse follows [Semantic Versioning][urls.semver]. Every push to a `v*` tag
 triggers the CI/CD pipeline, which cross-compiles binaries for all supported
-platforms and publishes them to [GitHub Releases][urls.releases] with SHA256 checksums.
+platforms into a draft on [GitHub Releases][urls.releases]. The archives are then
+signed offline with an ed25519 key (zipsign), get their SHA256 checksums and the
+release is published. The installer checks the SHA256; the self-updater checks
+the signature.
 
 Unless `auto_update = false`, the agent checks for a new release every 24 hours
 and applies it, restarting through the service manager.

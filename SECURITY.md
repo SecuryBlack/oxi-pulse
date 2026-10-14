@@ -6,8 +6,8 @@ SecuryBlack actively supports and maintains the latest minor release line of Oxi
 
 | Version | Supported          | Status |
 | ------- | ------------------ | ------ |
-| 0.3.x   | :white_check_mark: | Active support |
-| < 0.3.0 | :x:                | End of life |
+| 0.4.x   | :white_check_mark: | Active support (0.4.5+ only installs signed updates) |
+| < 0.4.0 | :x:                | End of life |
 
 ---
 
@@ -36,7 +36,7 @@ It downloads the release archive from GitHub Releases and verifies it against th
 | Destination | When | What is sent |
 |---|---|---|
 | Your OTLP `endpoint` | Every `interval_secs` (default 30 s) | The metrics listed in the README and host attributes (host name, OS, kernel, CPU model). Your `token`, if set, as `Authorization: Bearer` |
-| `api.github.com` / GitHub Releases | Once a day, unless `auto_update = false` | A request for the latest release; if there is a newer one, downloads it over HTTPS and replaces the binary. The updater does not verify checksums or signatures yet (the installer does). Set `auto_update = false` if your policy requires reviewed upgrades |
+| `api.github.com` / GitHub Releases | Once a day, unless `auto_update = false` | A request for the latest release; if there is a newer one, downloads it over HTTPS and replaces the binary. Since 0.4.5 the updater only installs archives signed with SecuryBlack's offline ed25519 release key (zipsign) and rejects anything else. Set `auto_update = false` if your policy requires reviewed upgrades |
 | Latency targets | Every interval | A TCP connection to your endpoint and to `1.1.1.1:53` (default) to measure latency. Override with `latency_targets` |
 | `api.securyblack.com` | **Only** when the endpoint is SecuryBlack Cloud, or when you set `telemetry_enabled = true` | Agent version, OS, architecture, interval, uptime, exported-metric count, buffer usage, last error kind. No metric values |
 
@@ -50,7 +50,7 @@ We take the security of OxiPulse and our users' infrastructure seriously. If you
 
 **Please DO NOT open public GitHub issues, discussions, or pull requests for security vulnerabilities.**
 
-Instead, please send a private email to:
+Instead, use [GitHub private vulnerability reporting](https://github.com/SecuryBlack/oxi-pulse/security/advisories/new) or send a private email to:
 **security@securyblack.com**
 
 Please include in your report:
