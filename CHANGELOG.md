@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- **Commands**: Verify S4 signed commands (ed25519 signature, expiry, replay protection) via `sb-agent-core` `command_intake`. Unsigned commands are still accepted with a warning during the transition.
+
 ## [0.4.5] - 2026-10-14
 
 ### Security

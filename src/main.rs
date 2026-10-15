@@ -106,6 +106,10 @@ async fn run(mut shutdown: tokio::sync::oneshot::Receiver<()>) {
     sb_agent_core::command_intake::spawn_server(
         command_registry,
         sb_agent_core::command_intake::default_socket_path("oxipulse"),
+        sb_agent_core::command_intake::SigningContext {
+            server_token: cfg.token.clone(),
+            target_agent: "oxipulse".into(),
+        },
     );
 
     // ── Telemetry opt-in ─────────────────────────────────────────────────────
