@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.1] - 2026-10-16
+
+### Fixed
+- **Metrics (Linux)**: Per-service memory is now the working set (`memory.current` minus `inactive_file`), as `docker stats` and Kubernetes report it. It used to include reclaimable page cache, so a service that reads many files showed its cache as RAM.
+
 ## [0.5.0] - 2026-10-16
 
 ### Added

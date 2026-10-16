@@ -120,11 +120,13 @@ impl LinuxState {
         let mut all = Vec::new();
         for (unit, path) in service_dirs(std::path::Path::new(&self.cgroup_root)) {
             let read = |f: &str| std::fs::read_to_string(path.join(f)).ok();
-            let Some(memory_bytes) = read("memory.current").and_then(|s| s.trim().parse().ok())
-            else {
+            let Some(current) = read("memory.current").and_then(|s| s.trim().parse().ok()) else {
                 continue;
             };
-            let cpu_us = read("cpu.stat").as_deref().and_then(parse_cpu_usage_usec);
+            let memory_bytes = working_set(current, read("memory.stat").as_deref());
+            let cpu_us = read("cpu.stat")
+                .as_deref()
+                .and_then(|s| stat_value(s, "usage_usec"));
             let mut cpu_utilization = 0.0;
             if let Some(cpu_us) = cpu_us {
                 if let (Some(prev), Some(dt)) = (self.services.get(&unit), elapsed) {
@@ -272,12 +274,21 @@ fn parse_threads(text: &str) -> Option<u64> {
         .ok()
 }
 
-fn parse_cpu_usage_usec(text: &str) -> Option<u64> {
+/// One `key value` line of a cgroup flat-keyed file (cpu.stat, memory.stat).
+fn stat_value(text: &str, key: &str) -> Option<u64> {
     text.lines()
-        .find_map(|l| l.strip_prefix("usage_usec "))?
+        .find_map(|l| l.strip_prefix(key)?.strip_prefix(' '))?
         .trim()
         .parse()
         .ok()
+}
+
+/// Working set, as docker stats and Kubernetes report it: memory.current
+/// minus the page cache the kernel can drop at once. Without this a service
+/// that reads many files (FIM hashing, log tailing) shows its cache as RAM.
+fn working_set(current: u64, memory_stat: Option<&str>) -> u64 {
+    let inactive = memory_stat.and_then(|s| stat_value(s, "inactive_file"));
+    current.saturating_sub(inactive.unwrap_or(0))
 }
 
 /// (total, used) inodes of the filesystem at `path`, or None where it has no
@@ -326,9 +337,14 @@ mod tests {
         assert_eq!(parse_oom_kills("pgfault 9\n"), None);
         assert_eq!(parse_threads("0.10 0.20 0.30 2/345 6789\n"), Some(345));
         assert_eq!(
-            parse_cpu_usage_usec("usage_usec 42\nuser_usec 30\n"),
+            stat_value("usage_usec 42\nuser_usec 30\n", "usage_usec"),
             Some(42)
         );
+        let mem = "anon 100\nactive_file 50\ninactive_file 800\ninactive_anon 0\n";
+        assert_eq!(stat_value(mem, "inactive_file"), Some(800));
+        assert_eq!(working_set(1000, Some(mem)), 200);
+        assert_eq!(working_set(1000, None), 1000);
+        assert_eq!(working_set(500, Some(mem)), 0);
     }
 
     #[test]
