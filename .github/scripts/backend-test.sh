@@ -9,7 +9,7 @@ log() { echo "[$(date +%T)] $*"; }
 
 # run_agent <endpoint> [headers]: OxiPulse with a 5 s interval, no update, no telemetry
 run_agent() {
-  OXIPULSE_ENDPOINT=$1 OXIPULSE_HEADERS=${2:-} OXIPULSE_INTERVAL_SECS=5 \
+  OXIPULSE_ENDPOINT=$1 OXIPULSE_HEADERS=${2:-} OXIPULSE_INTERVAL_SECS=5 OXIPULSE_LATENCY_TARGETS=${LATENCY_TARGETS:-} \
   OXIPULSE_AUTO_UPDATE=false OXIPULSE_TELEMETRY=false RUST_LOG=info,oxipulse=debug \
     nohup ./oxipulse > /tmp/oxipulse.log 2>&1 &
 }
@@ -40,7 +40,8 @@ uptrace)
   git clone --depth 1 https://github.com/uptrace/uptrace /tmp/uptrace
   (cd /tmp/uptrace/example/docker && docker compose up -d)
   until curl -fs localhost:14318 >/dev/null; do sleep 3; done
-  run_agent http://localhost:14317 "uptrace-dsn=http://project1_secret@localhost:14318?grpc=14317"
+  # Latency is off by default since 0.5.0; it is the one metric only OxiPulse sends here.
+  LATENCY_TARGETS=localhost:14317 run_agent http://localhost:14317 "uptrace-dsn=http://project1_secret@localhost:14318?grpc=14317"
   ch() { curl -fs "http://uptrace:uptrace@localhost:8123/?database=uptrace" --data-binary "$1"; }
   # ponytail: searches every table with a `metric` column, since Uptrace v2 renamed its schema
   wait_for "system_network_latency (OxiPulse only) in Uptrace" '
