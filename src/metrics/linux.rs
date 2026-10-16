@@ -108,24 +108,17 @@ impl LinuxState {
                 .map(|p| kills.saturating_sub(p));
         }
 
-        stats.failed_units = failed_units().await;
+        // Before the await, so systemctl's latency does not skew the CPU interval.
         stats.services = self.services(elapsed, cpu_count);
+        stats.failed_units = failed_units().await;
         stats
     }
 
     /// Memory and CPU per systemd service from cgroup v2.
     fn services(&mut self, elapsed: Option<Duration>, cpu_count: usize) -> Vec<ServiceUsage> {
-        let Ok(dir) = std::fs::read_dir(&self.cgroup_root) else {
-            return Vec::new();
-        };
         let mut usage = HashMap::new();
         let mut all = Vec::new();
-        for entry in dir.flatten() {
-            let unit = entry.file_name().to_string_lossy().to_string();
-            if !unit.ends_with(".service") {
-                continue;
-            }
-            let path = entry.path();
+        for (unit, path) in service_dirs(std::path::Path::new(&self.cgroup_root)) {
             let read = |f: &str| std::fs::read_to_string(path.join(f)).ok();
             let Some(memory_bytes) = read("memory.current").and_then(|s| s.trim().parse().ok())
             else {
@@ -152,6 +145,25 @@ impl LinuxState {
     }
 }
 
+/// `.service` cgroups under `dir`, also inside nested slices such as
+/// `system-postgresql.slice`. Does not descend into a service's own subgroups,
+/// which its counters already include.
+fn service_dirs(dir: &std::path::Path) -> Vec<(String, std::path::PathBuf)> {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    for entry in entries.flatten() {
+        let name = entry.file_name().to_string_lossy().to_string();
+        if name.ends_with(".service") {
+            out.push((name, entry.path()));
+        } else if name.ends_with(".slice") {
+            out.extend(service_dirs(&entry.path()));
+        }
+    }
+    out
+}
+
 /// Units in the `failed` state, or None without systemd.
 async fn failed_units() -> Option<u64> {
     if !cfg!(target_os = "linux") {
@@ -159,6 +171,8 @@ async fn failed_units() -> Option<u64> {
     }
     let cmd = tokio::process::Command::new("systemctl")
         .args(["list-units", "--state=failed", "--no-legend", "--plain"])
+        // A timed-out systemctl is killed instead of piling up.
+        .kill_on_drop(true)
         .output();
     let out = tokio::time::timeout(Duration::from_secs(2), cmd)
         .await
@@ -315,6 +329,22 @@ mod tests {
             parse_cpu_usage_usec("usage_usec 42\nuser_usec 30\n"),
             Some(42)
         );
+    }
+
+    #[test]
+    fn service_dirs_walks_nested_slices() {
+        let root = std::env::temp_dir().join(format!("oxipulse-cg-{}", std::process::id()));
+        for d in [
+            "a.service/sub",
+            "system-postgresql.slice/postgresql@16-main.service",
+            "init.scope",
+        ] {
+            std::fs::create_dir_all(root.join(d)).unwrap();
+        }
+        let mut units: Vec<_> = service_dirs(&root).into_iter().map(|(u, _)| u).collect();
+        units.sort();
+        std::fs::remove_dir_all(&root).unwrap();
+        assert_eq!(units, ["a.service", "postgresql@16-main.service"]);
     }
 
     #[test]
