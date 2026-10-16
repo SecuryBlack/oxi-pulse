@@ -1,6 +1,6 @@
 pkgbase = oxipulse-bin
 	pkgdesc = Lightweight host metrics agent that speaks OpenTelemetry (OTLP)
-	pkgver = 0.4.5
+	pkgver = 0.4.6
 	pkgrel = 1
 	url = https://oxipulse.dev
 	install = oxipulse-bin.install
@@ -13,13 +13,13 @@ pkgbase = oxipulse-bin
 	options = !debug
 	options = !strip
 	backup = etc/oxipulse/config.toml
-	source = oxipulse.service::https://github.com/securyblack/oxi-pulse/raw/v0.4.5/packaging/oxipulse.service
-	source = config.toml::https://github.com/securyblack/oxi-pulse/raw/v0.4.5/packaging/config.toml
+	source = oxipulse.service::https://github.com/securyblack/oxi-pulse/raw/v0.4.6/packaging/oxipulse.service
+	source = config.toml::https://github.com/securyblack/oxi-pulse/raw/v0.4.6/packaging/config.toml
 	sha256sums = 3abbace9e94923207074584825da243e23dacb3b2c7deaa9d7a1a78178fb81ae
 	sha256sums = 6b9ecb82362d2c07041147207d67e5ce35d7584742673165fcee0e414c5674b9
-	source_x86_64 = oxipulse-0.4.5-x86_64.tar.gz::https://github.com/securyblack/oxi-pulse/releases/download/v0.4.5/oxipulse-x86_64-unknown-linux-gnu.tar.gz
-	sha256sums_x86_64 = 90f2c71ea111426b0ddefdb44b49f0d8803107abd9a5a140192bac9a89b9cca0
-	source_aarch64 = oxipulse-0.4.5-aarch64.tar.gz::https://github.com/securyblack/oxi-pulse/releases/download/v0.4.5/oxipulse-aarch64-unknown-linux-gnu.tar.gz
-	sha256sums_aarch64 = d5b5cab6d6fd17dd26375d14368514741338d58d2724a4941a783ebe9f9750c1
+	source_x86_64 = oxipulse-0.4.6-x86_64.tar.gz::https://github.com/securyblack/oxi-pulse/releases/download/v0.4.6/oxipulse-x86_64-unknown-linux-gnu.tar.gz
+	sha256sums_x86_64 = 8d0c1e9c19edbe1cfaf03b2d2228e6d04ef0a0e0b7a5c735cfe2a34b5633c486
+	source_aarch64 = oxipulse-0.4.6-aarch64.tar.gz::https://github.com/securyblack/oxi-pulse/releases/download/v0.4.6/oxipulse-aarch64-unknown-linux-gnu.tar.gz
+	sha256sums_aarch64 = 27da0f2c81dccd926cf0db7ece8b16f19bafdcf9df2a395a5f06a90e0fbe75fe
 
 pkgname = oxipulse-bin

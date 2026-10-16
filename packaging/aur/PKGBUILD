@@ -1,6 +1,6 @@
 # Maintainer: SecuryBlack <security@securyblack.com>
 pkgname=oxipulse-bin
-pkgver=0.4.5
+pkgver=0.4.6
 pkgrel=1
 pkgdesc='Lightweight host metrics agent that speaks OpenTelemetry (OTLP)'
 arch=('x86_64' 'aarch64')
@@ -19,8 +19,8 @@ source_x86_64=("oxipulse-$pkgver-x86_64.tar.gz::$_src/releases/download/v$pkgver
 source_aarch64=("oxipulse-$pkgver-aarch64.tar.gz::$_src/releases/download/v$pkgver/oxipulse-aarch64-unknown-linux-gnu.tar.gz")
 sha256sums=('3abbace9e94923207074584825da243e23dacb3b2c7deaa9d7a1a78178fb81ae'
             '6b9ecb82362d2c07041147207d67e5ce35d7584742673165fcee0e414c5674b9')
-sha256sums_x86_64=('90f2c71ea111426b0ddefdb44b49f0d8803107abd9a5a140192bac9a89b9cca0')
-sha256sums_aarch64=('d5b5cab6d6fd17dd26375d14368514741338d58d2724a4941a783ebe9f9750c1')
+sha256sums_x86_64=('8d0c1e9c19edbe1cfaf03b2d2228e6d04ef0a0e0b7a5c735cfe2a34b5633c486')
+sha256sums_aarch64=('27da0f2c81dccd926cf0db7ece8b16f19bafdcf9df2a395a5f06a90e0fbe75fe')
 
 package() {
   install -Dm755 oxipulse "$pkgdir/usr/bin/oxipulse"
