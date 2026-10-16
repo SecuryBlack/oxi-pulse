@@ -5,10 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.4.6] - 2026-10-16
 
 ### Security
-- **Commands**: Verify S4 signed commands (ed25519 signature, expiry, replay protection) via `sb-agent-core` `command_intake`. Unsigned commands are still accepted with a warning during the transition.
+- **Commands**: Verify S4 signed commands (ed25519 signature, expiry, replay protection) via `sb-agent-core` `command_intake`. During the transition any verification failure (unsigned, invalid or expired) is accepted with a warning.
 
 ## [0.4.5] - 2026-10-14
 

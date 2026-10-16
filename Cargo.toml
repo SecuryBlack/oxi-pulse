@@ -1,13 +1,13 @@
 [package]
 name = "oxipulse"
-version = "0.4.5"
+version = "0.4.6"
 edition = "2024"
 license = "Apache-2.0"
 description = "Ultralight open source server monitoring agent"
 repository = "https://github.com/securyblack/oxi-pulse"
 
 [dependencies]
-sb-agent-core = "0.3"
+sb-agent-core = "0.4"
 tokio = { version = "1", features = ["full"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
@@ -23,8 +23,8 @@ tonic = { version = "0.14", features = ["tls-ring", "tls-native-roots"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 serde_json = "1"
 
-# sb-agent-core 0.3 (updater que solo instala releases firmadas con ed25519)
+# sb-agent-core 0.4 (releases firmadas con ed25519 y órdenes firmadas S4)
 # no está publicado en crates.io: el patch lo resuelve desde el tag de GitHub.
 # Quitar cuando se publique esa versión del crate.
 [patch.crates-io]
-sb-agent-core = { git = "https://github.com/SecuryBlack/sb-agent-core.git", tag = "v0.3.0" }
+sb-agent-core = { git = "https://github.com/SecuryBlack/sb-agent-core.git", tag = "v0.4.0" }
