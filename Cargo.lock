@@ -1602,6 +1602,7 @@ dependencies = [
 name = "oxipulse"
 version = "0.4.6"
 dependencies = [
+ "libc",
  "opentelemetry",
  "opentelemetry-proto",
  "opentelemetry_sdk",

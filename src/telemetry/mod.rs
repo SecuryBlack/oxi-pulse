@@ -7,15 +7,15 @@ use opentelemetry_sdk::{
     metrics::{PeriodicReader, SdkMeterProvider},
 };
 use std::collections::BTreeMap;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tonic::metadata::{MetadataMap, MetadataValue};
 use tonic::transport::{Channel, ClientTlsConfig};
 
 mod exporter;
 
-use crate::metrics::Metrics;
+use crate::metrics::{Metrics, ServiceUsage};
 
 // Metric names follow the OpenTelemetry system semantic conventions, so the
 // same queries and dashboards work for OxiPulse and the Collector's hostmetrics
@@ -34,6 +34,16 @@ pub struct Instruments {
     filesystem_usage: Gauge<u64>,
     network_io: Counter<u64>,
     net_latency: Gauge<f64>,
+    filesystem_inodes: Gauge<u64>,
+    cpu_mode_utilization: Gauge<f64>,
+    pressure: Gauge<f64>,
+    oom_kills: Gauge<u64>,
+    failed_units: Gauge<u64>,
+    threads: Gauge<u64>,
+    /// Read by observable gauges, which always export with delta temporality:
+    /// a service that leaves the top is not exported again with a stale value,
+    /// as a synchronous gauge with cumulative temporality would.
+    services: Arc<Mutex<Vec<ServiceUsage>>>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -122,6 +132,38 @@ pub fn init(
     // Create instruments under the "oxipulse" meter
     let meter = provider.meter("oxipulse");
 
+    let services: Arc<Mutex<Vec<ServiceUsage>>> = Arc::default();
+    let snapshot = services.clone();
+    meter
+        .u64_observable_gauge("system.service.memory.usage")
+        .with_description("Memory used by a systemd service (cgroup), top services only")
+        .with_unit("By")
+        .with_callback(move |o| {
+            for s in snapshot.lock().unwrap().iter() {
+                o.observe(
+                    s.memory_bytes,
+                    &[KeyValue::new("service.unit", s.unit.clone())],
+                );
+            }
+        })
+        .build();
+    let snapshot = services.clone();
+    meter
+        .f64_observable_gauge("system.service.cpu.utilization")
+        .with_description(
+            "CPU used by a systemd service as a fraction of all CPUs (0-1), top services only",
+        )
+        .with_unit("1")
+        .with_callback(move |o| {
+            for s in snapshot.lock().unwrap().iter() {
+                o.observe(
+                    s.cpu_utilization,
+                    &[KeyValue::new("service.unit", s.unit.clone())],
+                );
+            }
+        })
+        .build();
+
     let instruments = Instruments {
         uptime: meter
             .u64_gauge("system.uptime")
@@ -183,6 +225,38 @@ pub fn init(
             .with_description("TCP connect time to a target, -1 on failure")
             .with_unit("ms")
             .build(),
+        filesystem_inodes: meter
+            .u64_gauge("system.filesystem.inodes.usage")
+            .with_description("Filesystem inodes in use and free, by state")
+            .with_unit("{inode}")
+            .build(),
+        // Linux only, from here down.
+        cpu_mode_utilization: meter
+            .f64_gauge("system.cpu.mode.utilization")
+            .with_description("CPU time in steal and iowait as a fraction of all CPUs (0-1)")
+            .with_unit("1")
+            .build(),
+        pressure: meter
+            .f64_gauge("system.pressure.stall")
+            .with_description("Fraction of time tasks were stalled on cpu, memory or io since the previous collection (PSI)")
+            .with_unit("1")
+            .build(),
+        oom_kills: meter
+            .u64_gauge("system.oom_kills")
+            .with_description("Processes killed by the OOM killer since the previous collection")
+            .with_unit("{process}")
+            .build(),
+        failed_units: meter
+            .u64_gauge("system.systemd.units.failed")
+            .with_description("systemd units in the failed state")
+            .with_unit("{unit}")
+            .build(),
+        threads: meter
+            .u64_gauge("system.thread.count")
+            .with_description("Threads on the system")
+            .with_unit("{thread}")
+            .build(),
+        services,
     };
 
     Ok((instruments, provider))
@@ -202,6 +276,18 @@ pub fn record(instruments: &Instruments, m: &Metrics) {
                     KeyValue::new("state", state),
                 ],
             );
+        }
+        if let Some((total, used)) = disk.inodes {
+            for (state, value) in [("used", used), ("free", total.saturating_sub(used))] {
+                instruments.filesystem_inodes.record(
+                    value,
+                    &[
+                        KeyValue::new("device", disk.name.clone()),
+                        KeyValue::new("mountpoint", disk.mount_point.clone()),
+                        KeyValue::new("state", state),
+                    ],
+                );
+            }
         }
     }
     for n in &m.networks {
@@ -257,4 +343,32 @@ pub fn record(instruments: &Instruments, m: &Metrics) {
         let val = lat.latency_ms.unwrap_or(-1.0);
         instruments.net_latency.record(val, attrs);
     }
+
+    let l = &m.linux;
+    for (mode, value) in [("steal", l.cpu_steal), ("iowait", l.cpu_iowait)] {
+        if let Some(v) = value {
+            instruments
+                .cpu_mode_utilization
+                .record(v, &[KeyValue::new("cpu.mode", mode)]);
+        }
+    }
+    for p in &l.pressure {
+        instruments.pressure.record(
+            p.value,
+            &[
+                KeyValue::new("resource", p.resource),
+                KeyValue::new("kind", p.kind),
+            ],
+        );
+    }
+    if let Some(v) = l.oom_kills {
+        instruments.oom_kills.record(v, &[]);
+    }
+    if let Some(v) = l.failed_units {
+        instruments.failed_units.record(v, &[]);
+    }
+    if let Some(v) = l.threads {
+        instruments.threads.record(v, &[]);
+    }
+    *instruments.services.lock().unwrap() = l.services.clone();
 }

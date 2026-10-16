@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Metrics (Linux)**: CPU steal and iowait, pressure stall (PSI) for cpu/memory/io, OOM kills, failed systemd units, thread count, and memory and CPU of the top systemd services from cgroup v2. Inode usage per filesystem on every Unix.
+
+### Changed
+- **Latency**: No pings by default. `latency_targets` used to fall back to the endpoint and `1.1.1.1:53`; a successful export already proves the endpoint is reachable.
+
 ## [0.4.6] - 2026-10-16
 
 ### Security
