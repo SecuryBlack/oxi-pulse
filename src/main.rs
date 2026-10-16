@@ -162,7 +162,7 @@ async fn run(mut shutdown: tokio::sync::oneshot::Receiver<()>) {
     loop {
         tokio::select! {
             _ = interval.tick() => {
-                let m = collector.collect(&cfg.latency_targets, &cfg.endpoint).await;
+                let m = collector.collect(&cfg.latency_targets).await;
                 telemetry::record(&instruments, &m);
                 metrics_counter.fetch_add(1, Ordering::Relaxed);
                 info!(

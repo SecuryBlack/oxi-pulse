@@ -149,7 +149,7 @@ token    = ""                                    # optional, sent as Authorizati
 interval_secs   = 30      # collection and export interval
 buffer_max_size = 8640    # exports kept while offline (8640 x 30 s = 72 h)
 auto_update     = true    # daily self-update from GitHub Releases
-latency_targets = []      # host:port list; default is your endpoint and 1.1.1.1:53
+latency_targets = []      # host:port list to measure TCP connect time to; empty = none
 # telemetry_enabled = false  # usage ping to SecuryBlack, see below
 
 # [headers]               # extra gRPC headers, e.g. for OpenObserve or Uptrace
@@ -187,6 +187,21 @@ Names follow the [OpenTelemetry semantic conventions for system metrics](https:/
 | `system.network.io` | `system_network_io_bytes_total` | bytes | Counter. `device`, `direction`: `receive`, `transmit`. Use `rate()` |
 | `system.uptime` | `system_uptime_seconds` | s | |
 | `system.network.latency` | `system_network_latency_milliseconds` | ms | OxiPulse only, no convention exists. TCP connect time per `target`, `status`: `success`, `failure` (value -1) |
+| `system.filesystem.inodes.usage` | `system_filesystem_inodes_usage` | inodes | `device`, `mountpoint`, `state`: `used`, `free`. Not sent where the filesystem has no fixed inode table (btrfs) or on Windows |
+
+On Linux, also:
+
+| Metric | Prometheus | Unit | Notes |
+|---|---|---|---|
+| `system.cpu.mode.utilization` | `system_cpu_mode_utilization_ratio` | 0-1 | `cpu.mode`: `steal`, `iowait`. Since the previous collection |
+| `system.pressure.stall` | `system_pressure_stall_ratio` | 0-1 | PSI: share of time tasks waited on a resource since the previous collection. `resource`: `cpu`, `memory`, `io`; `kind`: `some`, `full` (not for `cpu`). Kernel 4.20+ |
+| `system.oom_kills` | `system_oom_kills` | processes | Killed by the OOM killer since the previous collection |
+| `system.systemd.units.failed` | `system_systemd_units_failed` | units | Not sent without systemd |
+| `system.thread.count` | `system_thread_count` | threads | |
+| `system.service.memory.usage` | `system_service_memory_usage_bytes` | bytes | Per systemd service (cgroup v2), `service.unit`. The 10 with most memory plus the 10 with most CPU |
+| `system.service.cpu.utilization` | `system_service_cpu_utilization_ratio` | 0-1 | Same services, fraction of all CPUs |
+
+Rates and per-interval values start at the second collection.
 
 Resource attributes on every series: `host.name`, `host.os.name`, `host.os.version`, `host.kernel.version`, `host.cpu.model`, `service.name`, `service.version`.
 

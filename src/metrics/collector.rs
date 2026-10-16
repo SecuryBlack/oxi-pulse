@@ -3,6 +3,8 @@ use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use sysinfo::{Disks, Networks, System};
 use tokio::net::TcpStream;
 
+use super::linux::{LinuxState, LinuxStats, inodes};
+
 #[derive(Debug, Clone)]
 pub struct LatencyMetric {
     pub target: String,
@@ -16,6 +18,8 @@ pub struct DiskInfo {
     pub fs_type: String,
     pub total_bytes: u64,
     pub used_bytes: u64,
+    /// (total, used) inodes, where the filesystem has a fixed inode table.
+    pub inodes: Option<(u64, u64)>,
 }
 
 /// Bytes moved by one network interface since the previous collection.
@@ -44,6 +48,7 @@ pub struct Metrics {
     pub networks: Vec<NetIo>,
     /// Network latency metrics to various targets in milliseconds.
     pub latencies: Vec<LatencyMetric>,
+    pub linux: LinuxStats,
 }
 
 pub struct Collector {
@@ -51,20 +56,23 @@ pub struct Collector {
     networks: Networks,
     /// Where the host's `/` is mounted when running in a container (`OXIPULSE_HOST_ROOT`).
     host_root: Option<String>,
+    linux: LinuxState,
 }
 
 impl Collector {
     pub fn new() -> Self {
+        let host_root = std::env::var("OXIPULSE_HOST_ROOT")
+            .ok()
+            .filter(|v| !v.is_empty());
         Self {
             sys: System::new_all(),
             networks: Networks::new_with_refreshed_list(),
-            host_root: std::env::var("OXIPULSE_HOST_ROOT")
-                .ok()
-                .filter(|v| !v.is_empty()),
+            linux: LinuxState::new(host_root.as_deref()),
+            host_root,
         }
     }
 
-    pub async fn collect(&mut self, latency_targets: &[String], default_endpoint: &str) -> Metrics {
+    pub async fn collect(&mut self, latency_targets: &[String]) -> Metrics {
         // Timestamp at moment of reading
         let timestamp_unix_ms = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -115,6 +123,7 @@ impl Collector {
                     fs_type: d.file_system().to_string_lossy().to_string(),
                     total_bytes: d.total_space(),
                     used_bytes: d.total_space().saturating_sub(d.available_space()),
+                    inodes: inodes(&d.mount_point().to_string_lossy()),
                 }
             })
             .collect();
@@ -133,14 +142,9 @@ impl Collector {
             .collect();
 
         // Measure latencies concurrently
+        // Only the user's targets: export success already proves the endpoint is reachable.
         let mut ping_tasks = Vec::new();
-        let targets_to_ping = if latency_targets.is_empty() {
-            vec![default_endpoint.to_string(), "1.1.1.1:53".to_string()]
-        } else {
-            latency_targets.to_vec()
-        };
-
-        for target in targets_to_ping {
+        for target in latency_targets.iter().cloned() {
             let task = tokio::spawn(async move {
                 let ms = ping_target(&target).await;
                 LatencyMetric {
@@ -173,6 +177,7 @@ impl Collector {
             disks: disk_infos,
             networks,
             latencies,
+            linux: self.linux.read(cpu_count).await,
         }
     }
 }
@@ -256,6 +261,7 @@ mod tests {
             fs_type: fs.into(),
             total_bytes: 100,
             used_bytes: 10,
+            inodes: None,
         }
     }
 
@@ -304,10 +310,11 @@ mod tests {
     #[tokio::test]
     async fn test_collector_creation_and_collection() {
         let mut collector = Collector::new();
-        let metrics = collector.collect(&[], "127.0.0.1:4317").await;
+        let metrics = collector.collect(&[]).await;
 
         assert!(metrics.ram_total_bytes > 0);
         assert!(metrics.timestamp_unix_ms > 0);
-        assert!(!metrics.latencies.is_empty());
+        // No targets configured, no pings.
+        assert!(metrics.latencies.is_empty());
     }
 }

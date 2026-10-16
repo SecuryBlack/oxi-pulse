@@ -38,7 +38,7 @@ pub struct Config {
     /// Defaults to "https://api.securyblack.com".
     #[serde(default = "default_api_url")]
     pub api_url: String,
-    /// Optional list of latency targets to check. Defaults to empty (which falls back to the endpoint).
+    /// Optional host:port targets to measure TCP connect time to. Empty (default): no pings.
     #[serde(default)]
     pub latency_targets: Vec<String>,
     /// Check GitHub Releases daily and self-update (default: true).
