@@ -36,8 +36,8 @@ It downloads the release archive from GitHub Releases and verifies it against th
 | Destination | When | What is sent |
 |---|---|---|
 | Your OTLP `endpoint` | Every `interval_secs` (default 30 s) | The metrics listed in the README and host attributes (host name, OS, kernel, CPU model). Your `token`, if set, as `Authorization: Bearer` |
-| `api.github.com` / GitHub Releases | Once a day, unless `auto_update = false` | A request for the latest release; if there is a newer one, downloads it over HTTPS and replaces the binary. The updater does not verify checksums or signatures yet (the installer does). Set `auto_update = false` if your policy requires reviewed upgrades |
-| Latency targets | Every interval | A TCP connection to your endpoint and to `1.1.1.1:53` (default) to measure latency. Override with `latency_targets` |
+| `api.github.com` / GitHub Releases | Once a day, unless `auto_update = false` | A request for the latest release; if there is a newer one, downloads it over HTTPS, checks its ed25519 signature against the SecuryBlack keys built into the binary and only then replaces it. Set `auto_update = false` if your policy requires reviewed upgrades |
+| Latency targets | Every interval, only if you set `latency_targets` | A TCP connection to each target to measure latency. None by default |
 | `api.securyblack.com` | **Only** when the endpoint is SecuryBlack Cloud, or when you set `telemetry_enabled = true` | Agent version, OS, architecture, interval, uptime, exported-metric count, buffer usage, last error kind. No metric values |
 
 With any non-SecuryBlack endpoint and default settings, OxiPulse never contacts SecuryBlack and never sends your token anywhere except your own endpoint.
