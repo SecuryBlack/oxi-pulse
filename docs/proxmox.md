@@ -17,8 +17,8 @@ Install on the node to watch the hardware. Add it to the containers and VMs whos
 As root in the node shell (Proxmox VE 8 and 9, amd64). Replace the version with the [latest one](https://github.com/securyblack/oxi-pulse/releases/latest):
 
 ```bash
-curl -fsSLO https://github.com/securyblack/oxi-pulse/releases/download/v0.5.1/oxipulse_0.5.1_amd64.deb
-apt install ./oxipulse_0.5.1_amd64.deb
+curl -fsSLO https://github.com/securyblack/oxi-pulse/releases/download/v0.5.2/oxipulse_0.5.2_amd64.deb
+apt install ./oxipulse_0.5.2_amd64.deb
 nano /etc/oxipulse/config.toml      # set endpoint (and token if your backend needs one)
 systemctl enable --now oxipulse
 ```
@@ -36,7 +36,7 @@ What to expect from the node:
 Works in unprivileged containers (the Proxmox default), no extra options needed. From the node, for container 101:
 
 ```bash
-pct push 101 oxipulse_0.5.1_amd64.deb /root/oxipulse.deb
+pct push 101 oxipulse_0.5.2_amd64.deb /root/oxipulse.deb
 pct exec 101 -- apt install -y /root/oxipulse.deb
 pct exec 101 -- sed -i 's|^endpoint = ""|endpoint = "http://collector.example.com:4317"|' /etc/oxipulse/config.toml
 pct exec 101 -- systemctl enable --now oxipulse
