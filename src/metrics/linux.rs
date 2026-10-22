@@ -166,26 +166,37 @@ fn service_dirs(dir: &std::path::Path) -> Vec<(String, std::path::PathBuf)> {
     out
 }
 
-/// Units in the `failed` state, or None without systemd.
+/// Units in the `failed` state, or None without systemd. Units started by a timer
+/// (fwupd-refresh, apt-daily…) are left out: they fail on a bad network day and
+/// retry on their own at the next tick, so counting them flags healthy servers.
 async fn failed_units() -> Option<u64> {
     if !cfg!(target_os = "linux") {
         return None;
     }
+    let out = systemctl(&["list-units", "--state=failed", "--no-legend", "--plain"]).await?;
+    let mut n = 0;
+    for unit in out.lines().filter_map(|l| l.split_whitespace().next()) {
+        let by = systemctl(&["show", "-p", "TriggeredBy", "--value", unit]).await;
+        if !by.is_some_and(|b| b.contains(".timer")) {
+            n += 1;
+        }
+    }
+    Some(n)
+}
+
+/// stdout of a successful `systemctl` call, killed after 2 s instead of piling up.
+async fn systemctl(args: &[&str]) -> Option<String> {
     let cmd = tokio::process::Command::new("systemctl")
-        .args(["list-units", "--state=failed", "--no-legend", "--plain"])
-        // A timed-out systemctl is killed instead of piling up.
+        .args(args)
         .kill_on_drop(true)
         .output();
     let out = tokio::time::timeout(Duration::from_secs(2), cmd)
         .await
         .ok()?
         .ok()?;
-    out.status.success().then(|| {
-        String::from_utf8_lossy(&out.stdout)
-            .lines()
-            .filter(|l| !l.trim().is_empty())
-            .count() as u64
-    })
+    out.status
+        .success()
+        .then(|| String::from_utf8_lossy(&out.stdout).into_owned())
 }
 
 fn top_services(mut all: Vec<ServiceUsage>, n: usize) -> Vec<ServiceUsage> {
