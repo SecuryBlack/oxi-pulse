@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **Metrics (Linux)**: Failed systemd units no longer count the ones a timer starts (`fwupd-refresh`, `apt-daily`…). They fail when the network hiccups and retry on their own, so a fresh Ubuntu server showed "2 failed services" with nothing wrong.
+
 ## [0.5.1] - 2026-10-16
 
 ### Fixed
