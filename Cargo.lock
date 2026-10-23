@@ -1600,7 +1600,7 @@ dependencies = [
 
 [[package]]
 name = "oxipulse"
-version = "0.5.3"
+version = "0.5.4"
 dependencies = [
  "libc",
  "opentelemetry",
@@ -2404,8 +2404,8 @@ checksum = "9774ba4a74de5f7b1c1451ed6cd5285a32eddb5cccb8cc655a4e50009e06477f"
 
 [[package]]
 name = "sb-agent-core"
-version = "0.4.1"
-source = "git+https://github.com/SecuryBlack/sb-agent-core.git?tag=v0.4.1#45bbc2ab687e6ce1e3d75da71888e6aa49b000ff"
+version = "0.4.2"
+source = "git+https://github.com/SecuryBlack/sb-agent-core.git?tag=v0.4.2#646b6a4892c519bac6cdbd67dcb07a1f3abd0f3b"
 dependencies = [
  "base64",
  "crossterm 0.28.1",
