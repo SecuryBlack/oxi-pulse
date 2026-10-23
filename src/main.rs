@@ -4,7 +4,7 @@ use std::sync::{
 };
 use std::time::Duration;
 use tokio::time;
-use tracing::info;
+use tracing::{debug, info};
 
 mod config;
 mod management;
@@ -165,7 +165,8 @@ async fn run(mut shutdown: tokio::sync::oneshot::Receiver<()>) {
                 let m = collector.collect(&cfg.latency_targets).await;
                 telemetry::record(&instruments, &m);
                 metrics_counter.fetch_add(1, Ordering::Relaxed);
-                info!(
+                // debug: a sample every 10 s at info filled the log with 8,640 lines a day.
+                debug!(
                     cpu = format!("{:.1}%", m.cpu_usage_percent),
                     ram_used_mb = m.ram_used_bytes / 1024 / 1024,
                     ram_total_mb = m.ram_total_bytes / 1024 / 1024,

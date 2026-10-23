@@ -69,11 +69,11 @@ Each [release][urls.releases] has packages for amd64 and arm64, if you prefer yo
 
 ```bash
 # Debian / Ubuntu
-curl -fsSLO https://github.com/securyblack/oxi-pulse/releases/download/v0.5.2/oxipulse_0.5.2_amd64.deb
-sudo apt install ./oxipulse_0.5.2_amd64.deb
+curl -fsSLO https://github.com/securyblack/oxi-pulse/releases/download/v0.5.3/oxipulse_0.5.3_amd64.deb
+sudo apt install ./oxipulse_0.5.3_amd64.deb
 
 # RHEL / Rocky / Alma / Fedora
-sudo dnf install https://github.com/securyblack/oxi-pulse/releases/download/v0.5.2/oxipulse-0.5.2-1.x86_64.rpm
+sudo dnf install https://github.com/securyblack/oxi-pulse/releases/download/v0.5.3/oxipulse-0.5.3-1.x86_64.rpm
 ```
 
 The package installs `/usr/bin/oxipulse` and a systemd service but does not start it. Set `endpoint` (and `token` if needed) in `/etc/oxipulse/config.toml`, then `sudo systemctl enable --now oxipulse`. Self-update is off; upgrades come from installing the next package, which keeps your config.
@@ -106,7 +106,7 @@ services:
     restart: unless-stopped
 ```
 
-All [configuration](#configuration) goes through `OXIPULSE_*` variables. The container runs as a non-root user, logs to stdout (`docker logs oxipulse`) and does not update itself: pull a new tag instead. Pin a version (`ghcr.io/securyblack/oxipulse:0.5.2`) if you prefer.
+All [configuration](#configuration) goes through `OXIPULSE_*` variables. The container runs as a non-root user, logs to stdout (`docker logs oxipulse`) and does not update itself: pull a new tag instead. Pin a version (`ghcr.io/securyblack/oxipulse:0.5.3`) if you prefer.
 
 ### Windows (PowerShell as Administrator)
 
