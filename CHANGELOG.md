@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.3] - 2026-10-23
+
+### Fixed
+- **Logs**: Old log files are deleted again; only the last 7 days are kept (sb-agent-core 0.4.1). Rotated files were never removed, so OxiPulse used about 3 MB of disk a day for as long as it ran.
+- **Logs**: The per-sample "metrics collected and recorded" line is now `debug`. At `info` it wrote 8,640 lines a day; set `RUST_LOG=debug` to see it again.
+
 ## [0.5.2] - 2026-10-22
 
 ### Fixed
