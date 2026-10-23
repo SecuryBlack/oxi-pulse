@@ -1,6 +1,6 @@
 [package]
 name = "oxipulse"
-version = "0.5.3"
+version = "0.5.4"
 edition = "2024"
 license = "Apache-2.0"
 description = "Ultralight open source server monitoring agent"
@@ -30,4 +30,4 @@ libc = "0.2"
 # no está publicado en crates.io: el patch lo resuelve desde el tag de GitHub.
 # Quitar cuando se publique esa versión del crate.
 [patch.crates-io]
-sb-agent-core = { git = "https://github.com/SecuryBlack/sb-agent-core.git", tag = "v0.4.1" }
+sb-agent-core = { git = "https://github.com/SecuryBlack/sb-agent-core.git", tag = "v0.4.2" }
