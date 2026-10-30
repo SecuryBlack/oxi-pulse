@@ -227,7 +227,6 @@ With any other endpoint and default settings, OxiPulse never contacts SecuryBlac
 - The Linux service runs as **root** (the self-updater needs to replace the binary). See [SECURITY.md](SECURITY.md) to run it unprivileged with `auto_update = false`.
 - The self-updater only installs signed archives (since 0.4.5), but the signature does not cover the version number: someone able to publish a release could ship an older signed build under a newer tag.
 - No macOS build and no per-container (Docker) metrics yet.
-- Metric names are not OTel semantic conventions yet (see above).
 
 ---
 
