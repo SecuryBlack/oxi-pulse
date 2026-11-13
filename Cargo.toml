@@ -30,4 +30,4 @@ libc = "0.2"
 # no está publicado en crates.io: el patch lo resuelve desde el tag de GitHub.
 # Quitar cuando se publique esa versión del crate.
 [patch.crates-io]
-sb-agent-core = { git = "https://github.com/SecuryBlack/sb-agent-core.git", tag = "v0.4.2" }
+sb-agent-core = { git = "https://github.com/SecuryBlack/sb-agent-core.git", rev = "a048d3dc37382e35bee3fa43244cb1377ed66fc4" }
