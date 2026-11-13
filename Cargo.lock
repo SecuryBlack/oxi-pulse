@@ -2603,7 +2603,7 @@ dependencies = [
 [[package]]
 name = "sb-agent-core"
 version = "0.4.3"
-source = "git+https://github.com/SecuryBlack/sb-agent-core.git?rev=a048d3dc37382e35bee3fa43244cb1377ed66fc4#a048d3dc37382e35bee3fa43244cb1377ed66fc4"
+source = "git+https://github.com/SecuryBlack/sb-agent-core.git?tag=v0.4.3#b1e8653453f3e4b839f6c94c676b9a072f1ae10b"
 dependencies = [
  "base64 0.22.1",
  "crossterm 0.28.1",
@@ -3046,7 +3046,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.3.4",
+ "getrandom 0.4.2",
  "once_cell",
  "rustix 1.1.4",
  "windows-sys 0.61.2",
